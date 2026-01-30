@@ -41,6 +41,8 @@ import { HighlightSegment } from './parts/highlight-segment';
 import { IsochronePolygons } from './parts/isochrone-polygons';
 import { IsochroneLocations } from './parts/isochrone-locations';
 import { HeightgraphHoverMarker } from './parts/heightgraph-hover-marker';
+import { SurveillanceMarkers } from './parts/surveillance-markers';
+import { IceActivityMarkers } from './parts/ice-activity-markers';
 import { BrandLogos } from './parts/brand-logos';
 import { MapInfoPopup } from './parts/map-info-popup';
 import { MapContextMenu } from './parts/map-context-menu';
@@ -65,6 +67,7 @@ import {
   useReverseGeocodeIsochrones,
 } from '@/hooks/use-isochrones-queries';
 import { toast } from 'sonner';
+import { useIsMobile } from '@/hooks/use-is-mobile';
 
 const { center, zoom: zoom_initial } = getInitialMapPosition();
 
@@ -81,6 +84,7 @@ interface MarkerData {
 }
 
 export const MapComponent = () => {
+  const isMobile = useIsMobile();
   const { activeTab } = useParams({ from: '/$activeTab' });
   const coordinates = useCommonStore((state) => state.coordinates);
   const directionsPanelOpen = useCommonStore(
@@ -105,9 +109,11 @@ export const MapComponent = () => {
     shape: { lat: number; lon: number }[];
     id: string;
   } | null>(null);
-  const [heightgraphData, setHeightgraphData] = useState<FeatureCollection[]>(
-    []
+  const heightgraphData = useDirectionsStore((state) => state.heightgraphData);
+  const setHeightgraphData = useDirectionsStore(
+    (state) => state.setHeightgraphData
   );
+  const bottomSheetSnap = useCommonStore((state) => state.bottomSheetSnap);
   const waypoints = useDirectionsStore((state) => state.waypoints);
   const directionResults = useDirectionsStore((state) => state.results);
   const directionsSuccessful = useDirectionsStore((state) => state.successful);
@@ -443,14 +449,22 @@ export const MapComponent = () => {
         ]
       );
 
+      const bottomPadding = isMobile
+        ? bottomSheetSnap === 2
+          ? window.innerHeight * 0.92
+          : bottomSheetSnap === 1
+            ? window.innerHeight * 0.5
+            : window.innerHeight * 0.12
+        : 50;
+
       const paddingTopLeft = [
-        screen.width < 550 ? 50 : directionsPanelOpen ? 420 : 50,
+        isMobile ? 50 : directionsPanelOpen ? 420 : 50,
         50,
       ];
 
       const paddingBottomRight = [
-        screen.width < 550 ? 50 : settingsPanelOpen ? 420 : 50,
-        50,
+        isMobile ? 50 : settingsPanelOpen ? 420 : 50,
+        bottomPadding,
       ];
 
       mapRef.current.fitBounds(bounds, {
@@ -463,7 +477,7 @@ export const MapComponent = () => {
         maxZoom: coordinates.length === 1 ? 11 : 18,
       });
     }
-  }, [coordinates, directionsPanelOpen, settingsPanelOpen]);
+  }, [coordinates, directionsPanelOpen, settingsPanelOpen, isMobile, bottomSheetSnap]);
 
   const handleMapTilesClick = useCallback(
     (event: maplibregl.MapLayerMouseEvent) => {
@@ -772,6 +786,8 @@ export const MapComponent = () => {
       <HighlightSegment />
       <IsochronePolygons />
       <IsochroneLocations />
+      <SurveillanceMarkers />
+      <IceActivityMarkers />
       {markers.map((marker) => (
         <Marker
           anchor="bottom"
@@ -867,14 +883,18 @@ export const MapComponent = () => {
       <BrandLogos />
 
       <Button
-        className="absolute bottom-10 right-3 z-10"
+        className={
+          isMobile
+            ? 'absolute bottom-[18vh] right-3 z-10'
+            : 'absolute bottom-10 right-3 z-10'
+        }
         id="osm-button"
         onClick={handleOpenOSM}
       >
         Open OSM
       </Button>
 
-      {directionsSuccessful && (
+      {directionsSuccessful && !isMobile && (
         <HeightGraph
           data={heightgraphData}
           width={

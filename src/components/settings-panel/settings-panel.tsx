@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import {
   profileSettings,
   generalSettings,
+  avoidanceSettings,
   languageOptions,
   type DirectionsLanguage,
 } from './settings-options';
@@ -24,6 +25,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
+import { useIsMobile } from '@/hooks/use-is-mobile';
 import {
   X,
   Copy,
@@ -31,6 +33,7 @@ import {
   Languages,
   SlidersHorizontal,
   Settings2,
+  ShieldAlert,
 } from 'lucide-react';
 import { useParams, useSearch } from '@tanstack/react-router';
 import { useDirectionsQuery } from '@/hooks/use-directions-queries';
@@ -59,6 +62,7 @@ export const SettingsPanel = () => {
   const [languageSettingsOpen, setLanguageSettingsOpen] = useState(true);
   const [profileSettingsOpen, setProfileSettingsOpen] = useState(true);
   const [generalSettingsOpen, setGeneralSettingsOpen] = useState(true);
+  const [avoidanceSettingsOpen, setAvoidanceSettingsOpen] = useState(true);
 
   const handleLanguageChange = useCallback(
     (value: string) => {
@@ -117,15 +121,26 @@ export const SettingsPanel = () => {
     }
   }, [activeTab, profile, resetSettings, refetchDirections, refetchIsochrones]);
 
+  const isMobile = useIsMobile();
+
   const hasProfileSettings =
     profileSettings[profile as ProfileWithSettings].boolean.length > 0;
 
   return (
-    <Sheet open={settingsPanelOpen} modal={false}>
+    <Sheet open={settingsPanelOpen} modal={isMobile}>
       <SheetContent
-        side="right"
-        className="w-[350px] sm:max-w-[unset] max-h-screen overflow-y-scroll"
+        side={isMobile ? 'bottom' : 'right'}
+        className={
+          isMobile
+            ? 'h-[90vh] rounded-t-xl max-h-screen overflow-y-scroll'
+            : 'w-[350px] sm:max-w-[unset] max-h-screen overflow-y-scroll'
+        }
       >
+        {isMobile && (
+          <div className="flex justify-center py-2 shrink-0">
+            <div className="w-10 h-1.5 rounded-full bg-muted-foreground/30" />
+          </div>
+        )}
         <SheetHeader className="justify-between">
           <SheetTitle>Settings</SheetTitle>
           <SheetDescription className="sr-only">
@@ -313,6 +328,60 @@ export const SettingsPanel = () => {
                 />
               ))}
               {generalSettings.all.numeric.map((option, key) => (
+                <SliderSetting
+                  key={key}
+                  id={option.param}
+                  label={option.name}
+                  description={option.description}
+                  min={option.settings.min}
+                  max={option.settings.max}
+                  step={option.settings.step}
+                  value={(settings[option.param] as number) ?? 0}
+                  unit={option.unit}
+                  onValueChange={(values) => {
+                    updateSettings(option.param, values[0] ?? 0);
+                  }}
+                  onValueCommit={handleMakeRequest}
+                  onInputChange={(values) => {
+                    let value = values[0] ?? 0;
+                    if (isNaN(value)) value = option.settings.min;
+                    value = Math.max(
+                      option.settings.min,
+                      Math.min(value, option.settings.max)
+                    );
+                    handleUpdateSettings({
+                      name: option.param,
+                      value,
+                    });
+                  }}
+                />
+              ))}
+            </div>
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            title="Avoidance Settings"
+            icon={ShieldAlert}
+            open={avoidanceSettingsOpen}
+            onOpenChange={setAvoidanceSettingsOpen}
+          >
+            <div className="space-y-1.25">
+              {avoidanceSettings.boolean.map((option, key) => (
+                <CheckboxSetting
+                  key={key}
+                  id={option.param}
+                  label={option.name}
+                  description={option.description}
+                  checked={Boolean(settings[option.param])}
+                  onCheckedChange={(checked) => {
+                    handleUpdateSettings({
+                      name: option.param,
+                      value: checked,
+                    });
+                  }}
+                />
+              ))}
+              {avoidanceSettings.numeric.map((option, key) => (
                 <SliderSetting
                   key={key}
                   id={option.param}

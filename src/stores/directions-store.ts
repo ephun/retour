@@ -2,6 +2,8 @@ import type {
   ActiveWaypoint,
   ParsedDirectionsGeometry,
 } from '@/components/types';
+import type { SurveillanceNode, IceActivityNode } from '@/utils/alpr';
+import type { FeatureCollection } from 'geojson';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
@@ -66,14 +68,19 @@ export interface DirectionsState {
   zoomObj: ZoomObj;
   selectedAddresses: string | (Waypoint | null)[];
   results: RouteResult;
+  intersectingSurveillance: SurveillanceNode[];
+  intersectingIceActivity: IceActivityNode[];
   inclineDeclineTotal?: InclineDeclineTotal;
   isOptimized: boolean;
+  heightgraphData: FeatureCollection[];
 }
 
 interface DirectionsActions {
   updateInclineDecline: (inclineDeclineTotal: InclineDeclineTotal) => void;
   toggleShowOnMap: (params: { show: boolean; idx: number }) => void;
   clearRoutes: () => void;
+  setIntersectingSurveillance: (alprs: SurveillanceNode[]) => void;
+  setIntersectingIceActivity: (nodes: IceActivityNode[]) => void;
   receiveRouteResults: (params: { data: ParsedDirectionsGeometry }) => void;
   receiveGeocodeResults: (params: {
     index: number;
@@ -98,6 +105,7 @@ interface DirectionsActions {
     lat: number
   ) => void;
   setIsOptimized: (isOptimized: boolean) => void;
+  setHeightgraphData: (data: FeatureCollection[]) => void;
 }
 
 type DirectionsStore = DirectionsState & DirectionsActions;
@@ -111,7 +119,10 @@ export const useDirectionsStore = create<DirectionsStore>()(
       zoomObj: { index: -1, timeNow: -1 },
       selectedAddresses: '',
       results: { data: null, show: { '-1': true } },
+      intersectingSurveillance: [],
+      intersectingIceActivity: [],
       isOptimized: false,
+      heightgraphData: [],
 
       updateInclineDecline: (inclineDeclineTotal) =>
         set(
@@ -137,9 +148,29 @@ export const useDirectionsStore = create<DirectionsStore>()(
             state.successful = false;
             state.inclineDeclineTotal = undefined;
             state.results.data = null;
+            state.intersectingSurveillance = [];
+            state.intersectingIceActivity = [];
           },
           undefined,
           'clearRoutes'
+        ),
+
+      setIntersectingSurveillance: (alprs) =>
+        set(
+          (state) => {
+            state.intersectingSurveillance = alprs;
+          },
+          undefined,
+          'setIntersectingSurveillance'
+        ),
+
+      setIntersectingIceActivity: (nodes) =>
+        set(
+          (state) => {
+            state.intersectingIceActivity = nodes;
+          },
+          undefined,
+          'setIntersectingIceActivity'
         ),
 
       receiveRouteResults: ({ data }) =>
@@ -338,6 +369,15 @@ export const useDirectionsStore = create<DirectionsStore>()(
           },
           undefined,
           'setIsOptimized'
+        ),
+
+      setHeightgraphData: (data) =>
+        set(
+          (state) => {
+            state.heightgraphData = data;
+          },
+          undefined,
+          'setHeightgraphData'
         ),
     })),
     { name: 'directions-store' }
