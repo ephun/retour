@@ -16,7 +16,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Download } from 'lucide-react';
+import { Download, Navigation } from 'lucide-react';
+import { useNavigationStore } from '@/stores/navigation-store';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { exportDataAsJson } from '@/utils/export';
@@ -29,6 +30,7 @@ interface RouteCardProps {
 
 export const RouteCard = ({ data, index }: RouteCardProps) => {
   const [showManeuvers, setShowManeuvers] = useState(false);
+  const startNavigation = useNavigationStore((s) => s.startNavigation);
 
   const exportToGeoJson = useCallback(() => {
     const coordinates = data?.decodedGeometry;
@@ -78,6 +80,16 @@ export const RouteCard = ({ data, index }: RouteCardProps) => {
                 {showManeuvers ? 'Hide Maneuvers' : 'Show Maneuvers'}
               </Button>
             </CollapsibleTrigger>
+            {data.trip.legs.some((leg) => leg.maneuvers.length > 0) && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => startNavigation(data)}
+              >
+                <Navigation className="size-4" />
+                Navigate
+              </Button>
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm">

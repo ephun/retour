@@ -25,7 +25,6 @@ import { buildHeightgraphData } from '@/utils/heightgraph';
 import HeightGraph from '@/components/heightgraph';
 import { DrawControl } from './draw-control';
 import type { Summary } from '@/components/types';
-import type { FeatureCollection } from 'geojson';
 import { Button } from '@/components/ui/button';
 
 import { MapStyleControl } from './map-style-control';
@@ -44,6 +43,8 @@ import { HeightgraphHoverMarker } from './parts/heightgraph-hover-marker';
 import { SurveillanceMarkers } from './parts/surveillance-markers';
 import { IceActivityMarkers } from './parts/ice-activity-markers';
 import { BrandLogos } from './parts/brand-logos';
+import { NavigationOverlay } from '@/components/navigation/navigation-overlay';
+import { useNavigationStore } from '@/stores/navigation-store';
 import { MapInfoPopup } from './parts/map-info-popup';
 import { MapContextMenu } from './parts/map-context-menu';
 import { RouteHoverPopup } from './parts/route-hover-popup';
@@ -120,6 +121,9 @@ export const MapComponent = () => {
   const updateInclineDecline = useDirectionsStore(
     (state) => state.updateInclineDecline
   );
+
+  const isNavigating = useNavigationStore((s) => s.isNavigating);
+  const navUserPosition = useNavigationStore((s) => s.userPosition);
 
   const { refetch: refetchDirections } = useDirectionsQuery();
   const { refetch: refetchIsochrones } = useIsochronesQuery();
@@ -383,7 +387,12 @@ export const MapComponent = () => {
           setIsHeightLoading(false);
         });
     }
-  }, [directionResults, heightPayload, updateInclineDecline]);
+  }, [
+    directionResults,
+    heightPayload,
+    updateInclineDecline,
+    setHeightgraphData,
+  ]);
 
   // Update markers when waypoints or isochrone centers change
   const geocodeResults = useIsochronesStore((state) => state.geocodeResults);
@@ -477,7 +486,24 @@ export const MapComponent = () => {
         maxZoom: coordinates.length === 1 ? 11 : 18,
       });
     }
-  }, [coordinates, directionsPanelOpen, settingsPanelOpen, isMobile, bottomSheetSnap]);
+  }, [
+    coordinates,
+    directionsPanelOpen,
+    settingsPanelOpen,
+    isMobile,
+    bottomSheetSnap,
+  ]);
+
+  // Auto-follow user position during navigation
+  useEffect(() => {
+    if (!isNavigating || !navUserPosition || !mapRef.current) return;
+    mapRef.current.easeTo({
+      center: [navUserPosition.lng, navUserPosition.lat],
+      zoom: 17,
+      bearing: navUserPosition.heading ?? 0,
+      duration: 500,
+    });
+  }, [isNavigating, navUserPosition]);
 
   const handleMapTilesClick = useCallback(
     (event: maplibregl.MapLayerMouseEvent) => {
@@ -881,6 +907,26 @@ export const MapComponent = () => {
       )}
 
       <BrandLogos />
+
+      <NavigationOverlay />
+
+      {isNavigating && navUserPosition && (
+        <Marker
+          longitude={navUserPosition.lng}
+          latitude={navUserPosition.lat}
+          anchor="center"
+        >
+          <div
+            className="size-5 rounded-full bg-blue-500 border-2 border-white shadow-lg"
+            style={{
+              transform: navUserPosition.heading
+                ? `rotate(${navUserPosition.heading}deg)`
+                : undefined,
+              boxShadow: '0 0 0 4px rgba(59, 130, 246, 0.3)',
+            }}
+          />
+        </Marker>
+      )}
 
       <Button
         className={

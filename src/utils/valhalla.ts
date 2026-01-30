@@ -7,7 +7,6 @@ import type {
   Settings,
 } from '@/components/types';
 import { getBaseUrl } from './base-url';
-
 export const getValhallaUrl = () => getBaseUrl();
 
 export const buildLocateRequest = (
@@ -74,6 +73,7 @@ export const buildDirectionsRequest = ({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (req.json as any).date_time = dateTime;
   }
+
   return req;
 };
 

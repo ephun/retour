@@ -1,8 +1,8 @@
 import { useState, useCallback } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { isValidCoordinates } from '@/utils/geom';
-import { forward_geocode, parseGeocodeResponse } from '@/utils/nominatim';
-import type { ActiveWaypoint, NominationResponse } from '@/components/types';
+import { forward_geocode, parseGeocodeResponse } from '@/utils/geocode';
+import type { ActiveWaypoint, PhotonResponse } from '@/components/types';
 import {
   Command,
   CommandEmpty,
@@ -94,11 +94,7 @@ export const WaypointSearch = ({
         ];
         onGeocodeResults?.(addresses);
       } else if (result.type === 'forward') {
-        const lngLat: [number, number] | undefined = undefined;
-        const addresses = parseGeocodeResponse(
-          result.data as NominationResponse | NominationResponse[],
-          lngLat!
-        );
+        const addresses = parseGeocodeResponse(result.data as PhotonResponse);
         onGeocodeResults?.(addresses as ActiveWaypoint[]);
       } else {
         onGeocodeResults?.([]);

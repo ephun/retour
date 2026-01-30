@@ -38,7 +38,23 @@ export const filterProfileSettings = (
     return filteredSettings;
   }
 
+  // These are app-level settings, not Valhalla costing options
+  const nonCostingSettings = new Set([
+    'avoid_alpr',
+    'avoid_speed_cameras',
+    'avoid_red_light_cameras',
+    'avoid_traffic_cameras',
+    'avoid_cctv',
+    'show_surveillance',
+    'surveillance_avoid_radius',
+    'avoid_ice_activity',
+    'show_ice_activity',
+    'ice_activity_avoid_radius',
+    'ice_activity_max_age',
+  ]);
+
   for (const setting in settings) {
+    if (nonCostingSettings.has(setting)) continue;
     // Check if the profile exists in settings_general
     if (profile in generalSettings) {
       for (const item of generalSettings[profile].numeric) {

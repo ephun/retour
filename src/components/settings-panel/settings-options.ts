@@ -490,6 +490,95 @@ const alternates = {
   },
 };
 
+const avoidAlpr = {
+  name: 'Avoid ALPRs',
+  description: 'Avoid roads near Automated License Plate Recognition cameras.',
+  param: 'avoid_alpr',
+};
+
+const avoidSpeedCameras = {
+  name: 'Avoid Speed Cameras',
+  description: 'Avoid roads near speed enforcement cameras.',
+  param: 'avoid_speed_cameras',
+};
+
+const avoidRedLightCameras = {
+  name: 'Avoid Red Light Cameras',
+  description: 'Avoid roads near red light enforcement cameras.',
+  param: 'avoid_red_light_cameras',
+};
+
+const avoidTrafficCameras = {
+  name: 'Avoid Traffic Cameras',
+  description: 'Avoid roads near traffic surveillance cameras.',
+  param: 'avoid_traffic_cameras',
+};
+
+const avoidCctv = {
+  name: 'Avoid CCTV',
+  description: 'Avoid roads near general CCTV surveillance cameras.',
+  param: 'avoid_cctv',
+};
+
+const showSurveillance = {
+  name: 'Show Surveillance',
+  description:
+    'Display known surveillance locations on the map, color-coded by type.',
+  param: 'show_surveillance',
+};
+
+const surveillanceAvoidRadius = {
+  name: 'Surveillance Avoid Radius',
+  param: 'surveillance_avoid_radius',
+  description:
+    'The radius around each surveillance device to avoid when routing.',
+  unit: 'meters',
+  settings: {
+    min: 25,
+    max: 500,
+    step: 25,
+  },
+};
+
+const avoidIceActivity = {
+  name: 'Avoid ICE Activity',
+  description: 'Avoid areas with reported ICE enforcement activity.',
+  param: 'avoid_ice_activity',
+};
+
+const showIceActivity = {
+  name: 'Show ICE Activity',
+  description:
+    'Display reported ICE enforcement activity locations on the map.',
+  param: 'show_ice_activity',
+};
+
+const iceActivityAvoidRadius = {
+  name: 'ICE Activity Avoid Radius',
+  param: 'ice_activity_avoid_radius',
+  description:
+    'The radius around each ICE activity report to avoid when routing. Larger than surveillance radius since reports represent areas, not precise points.',
+  unit: 'meters',
+  settings: {
+    min: 100,
+    max: 2000,
+    step: 100,
+  },
+};
+
+const iceActivityMaxAge = {
+  name: 'ICE Report Max Age',
+  param: 'ice_activity_max_age',
+  description:
+    'Only consider ICE reports from within this many days. Set to 0 for all time.',
+  unit: 'days',
+  settings: {
+    min: 0,
+    max: 365,
+    step: 1,
+  },
+};
+
 const ignoreHierarchies = {
   name: 'Disable Hierarchies',
   description:
@@ -851,6 +940,17 @@ export const settingsInit = {
   denoise: 0.1,
   generalize: 0,
   alternates: 0,
+  avoid_alpr: false,
+  avoid_speed_cameras: false,
+  avoid_red_light_cameras: false,
+  avoid_traffic_cameras: false,
+  avoid_cctv: false,
+  show_surveillance: false,
+  surveillance_avoid_radius: 100,
+  avoid_ice_activity: false,
+  show_ice_activity: false,
+  ice_activity_avoid_radius: 500,
+  ice_activity_max_age: 30,
 };
 
 export const settingsInitTruckOverride = {
@@ -1028,4 +1128,22 @@ export const generalSettings: Record<SettingsProfile, SettingsGroup> & {
     boolean: [useGeocoding],
     numeric: [alternates],
   },
+};
+
+export const avoidanceSettings = {
+  boolean: [
+    avoidAlpr,
+    avoidSpeedCameras,
+    avoidRedLightCameras,
+    avoidTrafficCameras,
+    avoidCctv,
+    showSurveillance,
+    avoidIceActivity,
+    showIceActivity,
+  ] as BooleanSetting[],
+  numeric: [
+    surveillanceAvoidRadius,
+    iceActivityAvoidRadius,
+    iceActivityMaxAge,
+  ] as NumericSetting[],
 };

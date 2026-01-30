@@ -79,6 +79,17 @@ export interface PossibleSettings {
   denoise: number;
   generalize: number;
   alternates: number;
+  avoid_alpr: boolean;
+  avoid_speed_cameras: boolean;
+  avoid_red_light_cameras: boolean;
+  avoid_traffic_cameras: boolean;
+  avoid_cctv: boolean;
+  show_surveillance: boolean;
+  surveillance_avoid_radius: number;
+  avoid_ice_activity: boolean;
+  show_ice_activity: boolean;
+  ice_activity_avoid_radius: number;
+  ice_activity_max_age: number;
   [key: string]: string | number | boolean | GeoJSON.GeoJSON[] | undefined;
 }
 
@@ -194,33 +205,28 @@ export interface Directions {
   exclude_polygons: GeoJSON.GeoJSON[];
 }
 
-export interface NominationResponse {
-  place_id: number;
-  licence: string;
-  osm_type: string;
-  osm_id: number;
-  lat: string;
-  lon: string;
-  class: string;
-  type: string;
-  place_rank: number;
-  importance: number;
-  addresstype: string;
-  name: string;
-  display_name: string;
-  address: Address;
-  boundingbox: string[];
+export interface PhotonFeature {
+  type: 'Feature';
+  geometry: {
+    type: 'Point';
+    coordinates: [number, number];
+  };
+  properties: Record<string, string | undefined> & {
+    osm_id?: string;
+    osm_type?: string;
+    name?: string;
+    street?: string;
+    housenumber?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+    postcode?: string;
+  };
 }
 
-export interface Address {
-  suburb: string;
-  town: string;
-  state: string;
-  'ISO3166-2-lvl4'?: string;
-  region: string;
-  postcode: string;
-  country: string;
-  country_code: string;
+export interface PhotonResponse {
+  type: 'FeatureCollection';
+  features: PhotonFeature[];
 }
 
 export interface ValhallaRouteResponse {

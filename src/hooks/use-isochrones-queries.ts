@@ -12,7 +12,7 @@ import {
   reverse_geocode,
   forward_geocode,
   parseGeocodeResponse,
-} from '@/utils/nominatim';
+} from '@/utils/geocode';
 import { filterProfileSettings } from '@/utils/filter-profile-settings';
 import { calcArea } from '@/utils/geom';
 import { useCommonStore } from '@/stores/common-store';

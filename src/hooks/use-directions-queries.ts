@@ -16,8 +16,18 @@ import {
   reverse_geocode,
   forward_geocode,
   parseGeocodeResponse,
-} from '@/utils/nominatim';
+} from '@/utils/geocode';
 import { filterProfileSettings } from '@/utils/filter-profile-settings';
+import {
+  loadSurveillanceNodes,
+  avoidSurveillanceOnRoute,
+  findSurveillanceNearRoute,
+  type SurveillanceType,
+  loadIceActivityNodes,
+  filterIceNodesByAge,
+  avoidIceActivityOnRoute,
+  findIceActivityNearRoute,
+} from '@/utils/alpr';
 import { getDirectionsLanguage } from '@/utils/directions-language';
 import { useCommonStore } from '@/stores/common-store';
 import { useDirectionsStore, type Waypoint } from '@/stores/directions-store';
@@ -39,8 +49,10 @@ async function fetchDirections() {
   const settings = filterProfileSettings(profile || 'bicycle', rawSettings);
   const language = getDirectionsLanguage();
 
+  const usedProfile = profile || 'bicycle';
+
   const valhallaRequest = buildDirectionsRequest({
-    profile: profile || 'bicycle',
+    profile: usedProfile,
     activeWaypoints,
     // @ts-expect-error todo: initial settings and filtered settings types mismatch
     settings,
@@ -68,7 +80,76 @@ async function fetchDirections() {
     }
   });
 
-  return data as ParsedDirectionsGeometry;
+  let result = data as ParsedDirectionsGeometry;
+  const baseExcludePolygons = (settings.directions.exclude_polygons ||
+    []) as unknown as number[][][];
+  let accumulatedPolygons: number[][][] = [...baseExcludePolygons];
+
+  // Post-process: reroute to avoid enabled surveillance types
+  const avoidTypes: SurveillanceType[] = [];
+  if (rawSettings.avoid_alpr) avoidTypes.push('alpr');
+  if (rawSettings.avoid_speed_cameras) avoidTypes.push('speed_camera');
+  if (rawSettings.avoid_red_light_cameras) avoidTypes.push('red_light_camera');
+  if (rawSettings.avoid_traffic_cameras) avoidTypes.push('traffic_camera');
+  if (rawSettings.avoid_cctv) avoidTypes.push('cctv');
+
+  if (avoidTypes.length > 0) {
+    const allNodes = await loadSurveillanceNodes();
+    const filteredNodes = allNodes.filter((n) => avoidTypes.includes(n.type));
+    let valhallaProfile = usedProfile as string;
+    if (valhallaProfile === 'car') valhallaProfile = 'auto';
+
+    const avoidResult = await avoidSurveillanceOnRoute(
+      result,
+      filteredNodes,
+      rawSettings.surveillance_avoid_radius || 100,
+      {
+        profile: valhallaProfile,
+        costingOptions: { [valhallaProfile]: { ...settings.costing } },
+        language,
+        activeWaypoints,
+        dateTime,
+        alternates: rawSettings.alternates,
+        existingExcludePolygons: accumulatedPolygons,
+      }
+    );
+    result = avoidResult.route;
+    accumulatedPolygons = [
+      ...accumulatedPolygons,
+      ...avoidResult.excludePolygons,
+    ];
+  }
+
+  // Post-process: reroute to avoid ICE activity areas
+  if (rawSettings.avoid_ice_activity) {
+    let iceNodes = await loadIceActivityNodes();
+    if (rawSettings.ice_activity_max_age > 0) {
+      iceNodes = filterIceNodesByAge(
+        iceNodes,
+        rawSettings.ice_activity_max_age
+      );
+    }
+    let valhallaProfile = usedProfile as string;
+    if (valhallaProfile === 'car') valhallaProfile = 'auto';
+
+    const avoidResult = await avoidIceActivityOnRoute(
+      result,
+      iceNodes,
+      rawSettings.ice_activity_avoid_radius || 500,
+      {
+        profile: valhallaProfile,
+        costingOptions: { [valhallaProfile]: { ...settings.costing } },
+        language,
+        activeWaypoints,
+        dateTime,
+        alternates: rawSettings.alternates,
+        existingExcludePolygons: accumulatedPolygons,
+      }
+    );
+    result = avoidResult.route;
+  }
+
+  return result;
 }
 
 export function useDirectionsQuery() {
@@ -76,6 +157,12 @@ export function useDirectionsQuery() {
   const zoomTo = useCommonStore((state) => state.zoomTo);
   const receiveRouteResults = useDirectionsStore(
     (state) => state.receiveRouteResults
+  );
+  const setIntersectingSurveillance = useDirectionsStore(
+    (state) => state.setIntersectingSurveillance
+  );
+  const setIntersectingIceActivity = useDirectionsStore(
+    (state) => state.setIntersectingIceActivity
   );
   const clearRoutes = useDirectionsStore((state) => state.clearRoutes);
 
@@ -88,6 +175,53 @@ export function useDirectionsQuery() {
         if (data) {
           receiveRouteResults({ data });
           zoomTo(data.decodedGeometry);
+
+          // Detect surveillance nodes that the final route still intersects
+          const { settings: rawS } = useCommonStore.getState();
+          const detectTypes: SurveillanceType[] = [];
+          if (rawS.avoid_alpr) detectTypes.push('alpr');
+          if (rawS.avoid_speed_cameras) detectTypes.push('speed_camera');
+          if (rawS.avoid_red_light_cameras)
+            detectTypes.push('red_light_camera');
+          if (rawS.avoid_traffic_cameras) detectTypes.push('traffic_camera');
+          if (rawS.avoid_cctv) detectTypes.push('cctv');
+
+          if (detectTypes.length > 0 || rawS.show_surveillance) {
+            const allNodes = await loadSurveillanceNodes();
+            const radius = rawS.surveillance_avoid_radius || 100;
+            const relevantNodes =
+              detectTypes.length > 0
+                ? allNodes.filter((n) => detectTypes.includes(n.type))
+                : allNodes;
+            const hits = findSurveillanceNearRoute(
+              data.decodedGeometry,
+              relevantNodes,
+              radius
+            );
+            setIntersectingSurveillance(hits);
+          } else {
+            setIntersectingSurveillance([]);
+          }
+
+          // Detect ICE activity nodes near route
+          if (rawS.avoid_ice_activity || rawS.show_ice_activity) {
+            let iceNodes = await loadIceActivityNodes();
+            if (rawS.ice_activity_max_age > 0) {
+              iceNodes = filterIceNodesByAge(
+                iceNodes,
+                rawS.ice_activity_max_age
+              );
+            }
+            const iceRadius = rawS.ice_activity_avoid_radius || 500;
+            const iceHits = findIceActivityNearRoute(
+              data.decodedGeometry,
+              iceNodes,
+              iceRadius
+            );
+            setIntersectingIceActivity(iceHits);
+          } else {
+            setIntersectingIceActivity([]);
+          }
         }
         return data;
       } catch (error) {
