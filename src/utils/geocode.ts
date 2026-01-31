@@ -1,10 +1,9 @@
 import type { PhotonResponse } from '@/components/types';
 import axios from 'axios';
-
-const PHOTON_BASE = import.meta.env.VITE_NOMINATIM_URL;
+import { getPhotonUrl } from './photon-url';
 
 export const forward_geocode = (userInput: string) =>
-  axios.get<PhotonResponse>(`${PHOTON_BASE}/api`, {
+  axios.get<PhotonResponse>(`${getPhotonUrl()}/api`, {
     params: {
       q: userInput,
       limit: 5,
@@ -12,7 +11,7 @@ export const forward_geocode = (userInput: string) =>
   });
 
 export const reverse_geocode = (lon: number, lat: number) =>
-  axios.get<PhotonResponse>(`${PHOTON_BASE}/reverse`, {
+  axios.get<PhotonResponse>(`${getPhotonUrl()}/reverse`, {
     params: {
       lon,
       lat,
@@ -23,8 +22,13 @@ export const reverse_geocode = (lon: number, lat: number) =>
 function buildDisplayName(props: Record<string, string | undefined>): string {
   const parts: string[] = [];
   if (props.name) parts.push(props.name);
-  if (props.street) parts.push(props.street);
-  if (props.housenumber) parts.push(props.housenumber);
+  if (props.housenumber && props.street) {
+    parts.push(`${props.housenumber} ${props.street}`);
+  } else if (props.street) {
+    parts.push(props.street);
+  } else if (props.housenumber) {
+    parts.push(props.housenumber);
+  }
   if (props.city) parts.push(props.city);
   if (props.state) parts.push(props.state);
   if (props.country) parts.push(props.country);

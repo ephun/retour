@@ -7,8 +7,6 @@ export const VALID_PROFILES: readonly Profile[] = [
   'car',
   'truck',
   'bus',
-  'motor_scooter',
-  'motorcycle',
 ] as const;
 
 export const isValidProfile = (profile: string): profile is Profile => {

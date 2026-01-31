@@ -15,8 +15,6 @@ export const profileEnum = z.enum([
   'car',
   'truck',
   'bus',
-  'motor_scooter',
-  'motorcycle',
 ]);
 
 export type Profile = z.infer<typeof profileEnum>;

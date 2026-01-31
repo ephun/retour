@@ -221,10 +221,6 @@ vi.mock('./parts/heightgraph-hover-marker', () => ({
   )),
 }));
 
-vi.mock('./parts/brand-logos', () => ({
-  BrandLogos: vi.fn(() => <div data-testid="brand-logos">Logos</div>),
-}));
-
 vi.mock('./parts/map-info-popup', () => ({
   MapInfoPopup: vi.fn(({ onClose }) => (
     <div data-testid="map-info-popup">
@@ -334,31 +330,9 @@ describe('MapComponent', () => {
     expect(screen.getByTestId('isochrone-locations')).toBeInTheDocument();
   });
 
-  it('should render brand logos', () => {
-    render(<MapComponent />);
-    expect(screen.getByTestId('brand-logos')).toBeInTheDocument();
-  });
-
   it('should render heightgraph hover marker', () => {
     render(<MapComponent />);
     expect(screen.getByTestId('heightgraph-hover-marker')).toBeInTheDocument();
-  });
-
-  it('should render Open OSM button', () => {
-    render(<MapComponent />);
-    expect(
-      screen.getByRole('button', { name: 'Open OSM' })
-    ).toBeInTheDocument();
-  });
-
-  it('should have Open OSM button that can be clicked', async () => {
-    const user = userEvent.setup();
-    render(<MapComponent />);
-
-    const osmButton = screen.getByRole('button', { name: 'Open OSM' });
-    expect(osmButton).toBeInTheDocument();
-
-    await user.click(osmButton);
   });
 
   it('should show info popup on map click after delay', async () => {

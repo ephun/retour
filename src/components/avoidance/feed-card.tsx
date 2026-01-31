@@ -39,9 +39,9 @@ export const FeedCard = ({ feed, onToggleChanged }: FeedCardProps) => {
   const feedTypeLabel = () => {
     switch (feed.type) {
       case 'builtin-surveillance':
-        return 'built-in surveillance';
+        return 'OpenStreetMap';
       case 'iceout':
-        return 'iceout.us API';
+        return 'iceout.org API';
       case 'geojson':
         return feed.url || 'GeoJSON feed';
       default:

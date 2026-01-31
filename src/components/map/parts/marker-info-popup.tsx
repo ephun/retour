@@ -1,6 +1,15 @@
 import { X, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
+const typeColors: Record<string, string> = {
+  alpr: 'bg-red-500',
+  speed_camera: 'bg-orange-500',
+  red_light_camera: 'bg-yellow-500',
+  traffic_camera: 'bg-blue-500',
+  cctv: 'bg-purple-500',
+  ice_activity: 'bg-amber-600',
+};
+
 interface MarkerInfoPopupProps {
   type: string;
   feedName: string;
@@ -26,40 +35,48 @@ export const MarkerInfoPopup = ({
       !['id', 'type'].includes(key)
   );
 
+  const accentColor = typeColors[type.toLowerCase()] ?? 'bg-muted-foreground';
+
   return (
     <div className="min-w-[200px] max-w-[300px]">
-      <div className="flex items-start justify-between gap-2 mb-2">
+      <div className="flex items-center gap-2 mb-3 pr-6">
+        <div className={`w-1 h-5 rounded-full ${accentColor}`} />
         <h3 className="font-bold text-sm">{type}</h3>
         <Button
           variant="ghost"
           size="icon"
-          className="size-5 shrink-0"
+          className="size-5 shrink-0 absolute right-1 top-1"
           onClick={onClose}
         >
           <X className="size-3" />
         </Button>
       </div>
 
-      <div className="text-xs space-y-1 text-muted-foreground">
-        <div>
-          <span className="font-medium">Source:</span> {feedName}
+      <div className="text-xs space-y-1.5 text-muted-foreground">
+        <div className="flex gap-1.5">
+          <span className="font-medium text-foreground/70">Source:</span>
+          <span>{feedName}</span>
         </div>
 
         {displayProperties.map(([key, value]) => (
-          <div key={key}>
-            <span className="font-medium capitalize">
+          <div key={key} className="flex gap-1.5">
+            <span className="font-medium text-foreground/70 capitalize">
               {key.replace(/_/g, ' ')}:
-            </span>{' '}
-            {String(value)}
+            </span>
+            <span>{String(value)}</span>
           </div>
         ))}
 
         {distanceFromRoute !== undefined && (
-          <div>
-            <span className="font-medium">Distance from route:</span>{' '}
-            {distanceFromRoute < 1000
-              ? `${Math.round(distanceFromRoute)}m`
-              : `${(distanceFromRoute / 1000).toFixed(1)}km`}
+          <div className="flex gap-1.5 pt-1 border-t border-border/50">
+            <span className="font-medium text-foreground/70">
+              Distance from route:
+            </span>
+            <span>
+              {distanceFromRoute < 1000
+                ? `${Math.round(distanceFromRoute)}m`
+                : `${(distanceFromRoute / 1000).toFixed(1)}km`}
+            </span>
           </div>
         )}
 
@@ -68,7 +85,7 @@ export const MarkerInfoPopup = ({
             href={sourceUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-blue-600 hover:underline mt-1"
+            className="inline-flex items-center gap-1 text-blue-600 hover:underline pt-1"
           >
             <ExternalLink className="size-3" />
             View source

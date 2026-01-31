@@ -92,26 +92,14 @@ describe('valhalla.ts', () => {
       });
     });
 
-    it('should create a locate request with motorcycle profile', () => {
+    it('should create a locate request with truck profile', () => {
       const latLng = { lat: 40.7128, lng: -74.006 };
-      const profile: Profile = 'motorcycle';
+      const profile: Profile = 'truck';
 
       const result = buildLocateRequest(latLng, profile);
 
       expect(result).toEqual({
-        costing: 'motorcycle',
-        locations: [{ lat: 40.7128, lon: -74.006 }],
-      });
-    });
-
-    it('should create a locate request with motor_scooter profile', () => {
-      const latLng = { lat: 40.7128, lng: -74.006 };
-      const profile: Profile = 'motor_scooter';
-
-      const result = buildLocateRequest(latLng, profile);
-
-      expect(result).toEqual({
-        costing: 'motor_scooter',
+        costing: 'truck',
         locations: [{ lat: 40.7128, lon: -74.006 }],
       });
     });

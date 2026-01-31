@@ -10,6 +10,12 @@ import {
   normalizeBaseUrl,
   testConnection,
 } from '@/utils/base-url';
+import {
+  getPhotonUrl,
+  setPhotonUrl,
+  getDefaultPhotonUrl,
+  testPhotonConnection,
+} from '@/utils/photon-url';
 import { CollapsibleSection } from '@/components/ui/collapsible-section';
 import { Server, RotateCcw, Loader2 } from 'lucide-react';
 import {
@@ -21,6 +27,7 @@ import {
 
 export const ServerSettings = () => {
   const [baseUrl, setBaseUrlState] = useState<string>(() => getBaseUrl());
+  const [photonUrl, setPhotonUrlState] = useState<string>(() => getPhotonUrl());
   const [isOpen, setIsOpen] = useState(false);
 
   const connectionMutation = useMutation({
@@ -30,6 +37,17 @@ export const ServerSettings = () => {
         const normalizedUrl = normalizeBaseUrl(url);
         setBaseUrl(normalizedUrl);
         setBaseUrlState(normalizedUrl);
+      }
+    },
+  });
+
+  const photonMutation = useMutation({
+    mutationFn: testPhotonConnection,
+    onSuccess: (result, url) => {
+      if (result.reachable) {
+        const normalizedUrl = url.trim().replace(/\/$/, '');
+        setPhotonUrl(normalizedUrl);
+        setPhotonUrlState(normalizedUrl);
       }
     },
   });
@@ -44,7 +62,18 @@ export const ServerSettings = () => {
     return null;
   };
 
+  const getPhotonErrorMessage = (): string | null => {
+    if (photonMutation.error) {
+      return photonMutation.error.message || 'Connection failed';
+    }
+    if (photonMutation.data && !photonMutation.data.reachable) {
+      return photonMutation.data.error || 'Server unreachable';
+    }
+    return null;
+  };
+
   const errorMessage = getErrorMessage();
+  const photonErrorMessage = getPhotonErrorMessage();
 
   const handleBaseUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setBaseUrlState(e.target.value);
@@ -87,6 +116,41 @@ export const ServerSettings = () => {
     connectionMutation.reset();
   };
 
+  const handlePhotonUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPhotonUrlState(e.target.value);
+    photonMutation.reset();
+  };
+
+  const handlePhotonUrlBlur = () => {
+    const currentStoredUrl = getPhotonUrl();
+    const trimmedUrl = photonUrl.trim();
+
+    if (trimmedUrl === currentStoredUrl) {
+      return;
+    }
+
+    const lastTestedUrl = photonMutation.variables;
+    if (lastTestedUrl === trimmedUrl && photonErrorMessage) {
+      return;
+    }
+
+    if (trimmedUrl === '' || trimmedUrl === getDefaultPhotonUrl()) {
+      setPhotonUrl(trimmedUrl);
+      setPhotonUrlState(trimmedUrl || getDefaultPhotonUrl());
+      photonMutation.reset();
+      return;
+    }
+
+    photonMutation.mutate(trimmedUrl);
+  };
+
+  const handleResetPhotonUrl = () => {
+    const defaultUrl = getDefaultPhotonUrl();
+    setPhotonUrlState(defaultUrl);
+    setPhotonUrl(defaultUrl);
+    photonMutation.reset();
+  };
+
   return (
     <CollapsibleSection
       title="Server Settings"
@@ -94,51 +158,100 @@ export const ServerSettings = () => {
       open={isOpen}
       onOpenChange={setIsOpen}
     >
-      <div className="space-y-2">
-        <Field data-invalid={!!errorMessage}>
-          <FieldLabel htmlFor="base-url-input">Base URL</FieldLabel>
-          <FieldDescription>
-            The Valhalla server URL for routing and isochrone requests
-          </FieldDescription>
-          <div className="flex gap-2">
-            <div className="flex-1 relative">
-              <Input
-                id="base-url-input"
-                type="url"
-                placeholder="https://valhalla.example.com"
-                value={baseUrl}
-                onChange={handleBaseUrlChange}
-                onBlur={handleBaseUrlBlur}
-                disabled={connectionMutation.isPending}
-                aria-invalid={!!errorMessage}
-                className={
-                  errorMessage
-                    ? 'border-destructive focus-visible:ring-destructive/50'
-                    : ''
-                }
-              />
-              {connectionMutation.isPending && (
-                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
-                </div>
-              )}
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <Field data-invalid={!!errorMessage}>
+            <FieldLabel htmlFor="base-url-input">Valhalla URL</FieldLabel>
+            <FieldDescription>
+              The Valhalla server URL for routing and isochrone requests
+            </FieldDescription>
+            <div className="flex gap-2">
+              <div className="flex-1 relative">
+                <Input
+                  id="base-url-input"
+                  type="url"
+                  placeholder="https://valhalla.example.com"
+                  value={baseUrl}
+                  onChange={handleBaseUrlChange}
+                  onBlur={handleBaseUrlBlur}
+                  disabled={connectionMutation.isPending}
+                  aria-invalid={!!errorMessage}
+                  className={
+                    errorMessage
+                      ? 'border-destructive focus-visible:ring-destructive/50'
+                      : ''
+                  }
+                />
+                {connectionMutation.isPending && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-          <FieldError>{errorMessage}</FieldError>
-        </Field>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleResetBaseUrl}
-          disabled={
-            connectionMutation.isPending ||
-            normalizeBaseUrl(baseUrl) === getDefaultBaseUrl()
-          }
-          className="w-full"
-        >
-          <RotateCcw className="size-3.5" />
-          Reset Base URL
-        </Button>
+            <FieldError>{errorMessage}</FieldError>
+          </Field>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleResetBaseUrl}
+            disabled={
+              connectionMutation.isPending ||
+              normalizeBaseUrl(baseUrl) === getDefaultBaseUrl()
+            }
+            className="w-full"
+          >
+            <RotateCcw className="size-3.5" />
+            Reset Valhalla URL
+          </Button>
+        </div>
+
+        <div className="space-y-2">
+          <Field data-invalid={!!photonErrorMessage}>
+            <FieldLabel htmlFor="photon-url-input">Photon URL</FieldLabel>
+            <FieldDescription>
+              The Photon geocoding server URL for address search
+            </FieldDescription>
+            <div className="flex gap-2">
+              <div className="flex-1 relative">
+                <Input
+                  id="photon-url-input"
+                  type="url"
+                  placeholder="https://photon.komoot.io"
+                  value={photonUrl}
+                  onChange={handlePhotonUrlChange}
+                  onBlur={handlePhotonUrlBlur}
+                  disabled={photonMutation.isPending}
+                  aria-invalid={!!photonErrorMessage}
+                  className={
+                    photonErrorMessage
+                      ? 'border-destructive focus-visible:ring-destructive/50'
+                      : ''
+                  }
+                />
+                {photonMutation.isPending && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                  </div>
+                )}
+              </div>
+            </div>
+            <FieldError>{photonErrorMessage}</FieldError>
+          </Field>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleResetPhotonUrl}
+            disabled={
+              photonMutation.isPending ||
+              photonUrl.trim().replace(/\/$/, '') === getDefaultPhotonUrl()
+            }
+            className="w-full"
+          >
+            <RotateCcw className="size-3.5" />
+            Reset Photon URL
+          </Button>
+        </div>
       </div>
     </CollapsibleSection>
   );

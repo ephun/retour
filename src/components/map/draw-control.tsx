@@ -36,7 +36,7 @@ export function DrawControl({
   useControl<MaplibreTerradrawControl>(
     () => {
       const control = new MaplibreTerradrawControl({
-        modes: ['polygon', 'select', 'delete-selection'],
+        modes: ['linestring', 'select', 'delete-selection'],
         open: true,
       });
 
@@ -52,7 +52,7 @@ export function DrawControl({
         if (terraDrawInstance) {
           finishHandlerRef.current = (id: string | number) => {
             const feature = terraDrawInstance.getSnapshotFeature(id);
-            if (feature?.properties?.mode === 'polygon') {
+            if (feature?.properties?.mode === 'linestring') {
               debouncedOnUpdate();
             }
           };

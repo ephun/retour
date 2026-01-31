@@ -46,3 +46,4 @@ count.txt
 .tanstack
 .wrangler
 nul
+.env

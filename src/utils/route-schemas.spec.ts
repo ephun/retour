@@ -5,13 +5,7 @@ describe('route-schemas', () => {
   describe('searchParamsSchema', () => {
     describe('profile field', () => {
       it('should accept valid profile values', () => {
-        const validProfiles = [
-          'auto',
-          'bicycle',
-          'pedestrian',
-          'truck',
-          'motor_scooter',
-        ];
+        const validProfiles = ['auto', 'bicycle', 'pedestrian', 'truck', 'car'];
 
         for (const profile of validProfiles) {
           const result = searchParamsSchema.parse({ profile });
@@ -24,9 +18,9 @@ describe('route-schemas', () => {
         expect(result.profile).toBeUndefined();
       });
 
-      it('should fallback to bicycle for invalid profile values', () => {
+      it('should fallback to car for invalid profile values', () => {
         const result = searchParamsSchema.parse({ profile: 'invalid' });
-        expect(result.profile).toBe('bicycle');
+        expect(result.profile).toBe('car');
       });
     });
 
@@ -108,8 +102,12 @@ describe('route-schemas', () => {
       expect(isValidTab('directions')).toBe(true);
     });
 
-    it('should return true for isochrones', () => {
-      expect(isValidTab('isochrones')).toBe(true);
+    it('should return true for avoid', () => {
+      expect(isValidTab('avoid')).toBe(true);
+    });
+
+    it('should return true for settings', () => {
+      expect(isValidTab('settings')).toBe(true);
     });
 
     it('should return true for tiles', () => {
@@ -118,17 +116,15 @@ describe('route-schemas', () => {
 
     it('should return false for invalid tab names', () => {
       expect(isValidTab('invalid')).toBe(false);
-      expect(isValidTab('settings')).toBe(false);
       expect(isValidTab('map')).toBe(false);
       expect(isValidTab('')).toBe(false);
     });
 
     it('should return false for similar but incorrect tab names', () => {
       expect(isValidTab('direction')).toBe(false);
-      expect(isValidTab('isochrone')).toBe(false);
       expect(isValidTab('tile')).toBe(false);
       expect(isValidTab('Directions')).toBe(false);
-      expect(isValidTab('ISOCHRONES')).toBe(false);
+      expect(isValidTab('AVOID')).toBe(false);
       expect(isValidTab('TILES')).toBe(false);
     });
 

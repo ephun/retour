@@ -43,10 +43,6 @@ describe('ProfilePicker', () => {
     expect(screen.getByTestId('profile-button-car')).toBeInTheDocument();
     expect(screen.getByTestId('profile-button-truck')).toBeInTheDocument();
     expect(screen.getByTestId('profile-button-bus')).toBeInTheDocument();
-    expect(
-      screen.getByTestId('profile-button-motor_scooter')
-    ).toBeInTheDocument();
-    expect(screen.getByTestId('profile-button-motorcycle')).toBeInTheDocument();
   });
 
   it('should highlight the active profile', () => {

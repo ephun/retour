@@ -14,15 +14,9 @@ import type { MaplibreTerradrawControl } from '@watergis/maplibre-gl-terradraw';
 import type maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
-import axios from 'axios';
-import {
-  getValhallaUrl,
-  buildHeightRequest,
-  buildLocateRequest,
-} from '@/utils/valhalla';
+import { reverse_geocode } from '@/utils/geocode';
 import { DrawControl } from './draw-control';
 import type { Summary } from '@/components/types';
-import { Button } from '@/components/ui/button';
 
 import { MapStyleControl } from './map-style-control';
 import { getInitialMapStyle, getCustomStyle, getMapStyleUrl } from './utils';
@@ -36,7 +30,6 @@ import { RouteLines } from './parts/route-lines';
 import { HighlightSegment } from './parts/highlight-segment';
 import { SurveillanceMarkers } from './parts/surveillance-markers';
 import { IceActivityMarkers } from './parts/ice-activity-markers';
-import { BrandLogos } from './parts/brand-logos';
 import { NavigationOverlay } from '@/components/navigation/navigation-overlay';
 import { useNavigationStore } from '@/stores/navigation-store';
 import { MapInfoPopup } from './parts/map-info-popup';
@@ -85,19 +78,15 @@ export const MapComponent = () => {
   const directionsPanelOpen = useCommonStore(
     (state) => state.directionsPanelOpen
   );
-  const updateSettings = useCommonStore((state) => state.updateSettings);
   const setMapReady = useCommonStore((state) => state.setMapReady);
-  const { profile, style } = useSearch({ from: '/$activeTab' });
+  const { style } = useSearch({ from: '/$activeTab' });
   const [showInfoPopup, setShowInfoPopup] = useState(false);
   const [showContextPopup, setShowContextPopup] = useState(false);
-  const [isLocateLoading, setIsLocateLoading] = useState(false);
-  const [isHeightLoading, setIsHeightLoading] = useState(false);
-  const [locate, setLocate] = useState([]);
   const [popupLngLat, setPopupLngLat] = useState<{
     lng: number;
     lat: number;
   } | null>(null);
-  const [elevation, setElevation] = useState('');
+  const [popupAddress, setPopupAddress] = useState<string>('');
   const bottomSheetSnap = useCommonStore((state) => state.bottomSheetSnap);
   const waypoints = useDirectionsStore((state) => state.waypoints);
 
@@ -188,35 +177,10 @@ export const MapComponent = () => {
     []
   );
 
-  const updateExcludePolygons = useCallback(() => {
-    if (!drawRef.current) return;
-    const terraDrawInstance = drawRef.current.getTerraDrawInstance();
-    if (!terraDrawInstance) return;
-
-    const snapshot = terraDrawInstance.getSnapshot();
-    const excludePolygons: number[][][] = [];
-
-    snapshot.forEach((feature) => {
-      if (feature.geometry.type === 'Polygon') {
-        const coords = feature.geometry.coordinates[0];
-        if (coords) {
-          const lngLatArray = coords.map((coord) => [
-            coord[0] ?? 0,
-            coord[1] ?? 0,
-          ]);
-          excludePolygons.push(lngLatArray);
-        }
-      }
-    });
-
-    updateSettings('exclude_polygons', excludePolygons as unknown as string);
-
-    if (activeTab === 'directions') {
-      refetchDirections();
-    } else {
-      refetchIsochrones();
-    }
-  }, [activeTab, refetchDirections, updateSettings, refetchIsochrones]);
+  // Draw control is now a measurement/ruler tool only - no route refetch
+  const handleDrawUpdate = useCallback(() => {
+    // Measurement tool - no side effects needed
+  }, []);
 
   const updateWaypointPosition = useCallback(
     (object: {
@@ -242,61 +206,6 @@ export const MapComponent = () => {
       });
     },
     [reverseGeocodeIsochrones, refetchIsochrones]
-  );
-
-  const handleOpenOSM = useCallback(() => {
-    if (!mapRef.current) return;
-    const { lng, lat } = mapRef.current.getCenter();
-    const zoom = mapRef.current.getZoom();
-    const osmURL = `https://www.openstreetmap.org/#map=${zoom}/${lat}/${lng}`;
-    window.open(osmURL, '_blank');
-  }, []);
-
-  const getHeight = useCallback((lng: number, lat: number) => {
-    setIsHeightLoading(true);
-    axios
-      .post(getValhallaUrl() + '/height', buildHeightRequest([[lat, lng]]), {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-      .then(({ data }) => {
-        if ('height' in data) {
-          setElevation(data.height[0] + ' m');
-        }
-      })
-      .catch(({ response }) => {
-        console.log(response);
-      })
-      .finally(() => {
-        setIsHeightLoading(false);
-      });
-  }, []);
-
-  const getLocate = useCallback(
-    (lng: number, lat: number) => {
-      setIsLocateLoading(true);
-      axios
-        .post(
-          getValhallaUrl() + '/locate',
-          buildLocateRequest({ lng, lat }, profile || 'bicycle'),
-          {
-            headers: {
-              'Content-Type': 'application/json',
-            },
-          }
-        )
-        .then(({ data }) => {
-          setLocate(data);
-        })
-        .catch(({ response }) => {
-          console.log(response);
-        })
-        .finally(() => {
-          setIsLocateLoading(false);
-        });
-    },
-    [profile]
   );
 
   const handleAddWaypoint = useCallback(
@@ -470,7 +379,7 @@ export const MapComponent = () => {
         if (terraDrawInstance) {
           const mode = terraDrawInstance.getMode();
           if (
-            mode === 'polygon' ||
+            mode === 'linestring' ||
             mode === 'select' ||
             mode === 'delete-selection'
           ) {
@@ -494,8 +403,28 @@ export const MapComponent = () => {
             handleMapTilesClick(event);
           } else {
             setPopupLngLat(pendingLngLat);
+            setPopupAddress('');
             setShowInfoPopup(true);
-            getHeight(pendingLngLat.lng, pendingLngLat.lat);
+            reverse_geocode(pendingLngLat.lng, pendingLngLat.lat)
+              .then(({ data }) => {
+                const feature = data.features?.[0];
+                if (feature) {
+                  const p = feature.properties;
+                  const parts: string[] = [];
+                  if (p.name) parts.push(p.name);
+                  if (p.housenumber && p.street) {
+                    parts.push(`${p.housenumber} ${p.street}`);
+                  } else if (p.street) {
+                    parts.push(p.street);
+                  }
+                  if (p.city) parts.push(p.city);
+                  if (p.state) parts.push(p.state);
+                  setPopupAddress(parts.join(', ') || 'Unknown location');
+                }
+              })
+              .catch(() => {
+                setPopupAddress('');
+              });
           }
         }
         clickStateRef.current.timer = null;
@@ -503,7 +432,6 @@ export const MapComponent = () => {
       }, CLICK_DELAY_MS);
     },
     [
-      getHeight,
       showInfoPopup,
       showContextPopup,
       cancelPendingClick,
@@ -715,7 +643,7 @@ export const MapComponent = () => {
     >
       <NavigationControl />
       <GeolocateControl onError={handleGeolocateError} />
-      <DrawControl onUpdate={updateExcludePolygons} controlRef={drawRef} />
+      <DrawControl onUpdate={handleDrawUpdate} controlRef={drawRef} />
       <MapStyleControl
         customStyleData={customStyleData}
         onStyleChange={handleStyleChange}
@@ -775,14 +703,9 @@ export const MapComponent = () => {
         >
           <MapInfoPopup
             popupLngLat={popupLngLat}
-            elevation={elevation}
-            isHeightLoading={isHeightLoading}
-            isLocateLoading={isLocateLoading}
-            locate={locate}
-            onLocate={getLocate}
+            address={popupAddress}
             onClose={() => {
               setShowInfoPopup(false);
-              setLocate([]);
             }}
           />
         </Popup>
@@ -811,8 +734,6 @@ export const MapComponent = () => {
         </Popup>
       )}
 
-      <BrandLogos />
-
       <NavigationOverlay />
 
       {isNavigating && navUserPosition && (
@@ -832,18 +753,6 @@ export const MapComponent = () => {
           />
         </Marker>
       )}
-
-      <Button
-        className={
-          isMobile
-            ? 'absolute bottom-[18vh] right-3 z-10'
-            : 'absolute bottom-10 right-3 z-10'
-        }
-        id="osm-button"
-        onClick={handleOpenOSM}
-      >
-        Open OSM
-      </Button>
     </Map>
   );
 };

@@ -32,9 +32,7 @@ export type SettingsProfile =
   | 'car'
   | 'bus'
   | 'pedestrian'
-  | 'motor_scooter'
-  | 'bicycle'
-  | 'motorcycle';
+  | 'bicycle';
 
 const createSettings = (
   numeric: NumericSetting[],
@@ -688,19 +686,6 @@ const topSpeed = {
   },
 };
 
-const usePrimary = {
-  name: 'Use Primary',
-  param: 'use_primary',
-  description:
-    "A riders's propensity to use primary roads. This is a range of values from 0 to 1, where 0 attempts to avoid primary roads, and 1 indicates the rider is more comfortable riding on primary roads. Based on the use_primary factor, roads with certain classifications and higher speeds are penalized in an attempt to avoid them when finding the best path. The default value is 0.5.",
-  unit: 'willingness',
-  settings: {
-    min: 0,
-    max: 1,
-    step: 0.1,
-  },
-};
-
 const walkingSpeed = {
   name: 'Walking Speed',
   param: 'walking_speed',
@@ -789,18 +774,6 @@ const maxHikingDifficulty = {
     min: 0,
     max: 6,
     step: 1,
-  },
-};
-
-const useTrails = {
-  name: 'Use Trails',
-  param: 'use_trails',
-  unit: 'willingness',
-  description: `A riders's desire for adventure in their routes. This is a range of values from 0 to 1, where 0 will avoid trails, tracks, unclassified or bad surfaces and values towards 1 will tend to avoid major roads and route on secondary roads. The default value is 0.0.`,
-  settings: {
-    min: 0,
-    max: 1,
-    step: 0.1,
   },
 };
 
@@ -1046,27 +1019,10 @@ export const profileSettings: Record<SettingsProfile, SettingsGroup> = {
     [shortest]
   ),
 
-  motor_scooter: createSettings(
-    [
-      useHills,
-      topSpeed,
-      usePrimary,
-      useLivingStreets,
-      ...gateSettings,
-      ...borderSettings,
-    ],
-    [shortest, ignoreHierarchies]
-  ),
-
   bicycle: createSettings(
     [cyclingSpeed, useRoads, useHills, avoidBadSurfaces, ...gateSettings],
     [shortest],
     [bicycleType]
-  ),
-
-  motorcycle: createSettings(
-    [...commonVehicleProfileNumeric],
-    [...commonVehicleProfileBoolean]
   ),
 };
 
@@ -1104,24 +1060,9 @@ export const generalSettings: Record<SettingsProfile, SettingsGroup> & {
     []
   ),
 
-  motor_scooter: createSettings([useFerry, useTracks, servicePenalty], []),
-
   bicycle: createSettings(
     [useFerry, useLivingStreets, turnPenaltyCost, ...serviceSettings],
     []
-  ),
-
-  motorcycle: createSettings(
-    [
-      turnPenaltyCost,
-      useHighways,
-      useTrails,
-      ...tollSettings,
-      ...ferrySettings,
-      useLivingStreets,
-      useTracks,
-    ],
-    [...ignoreFlags, excludeCashOnlyTolls]
   ),
 
   all: {

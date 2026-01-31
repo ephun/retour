@@ -1,10 +1,8 @@
 import { ReactComponent as BusSvg } from '@/images/bus.svg';
-import { ReactComponent as ScooterSvg } from '@/images/scooter.svg';
 import { ReactComponent as CarSvg } from '@/images/car.svg';
 import { ReactComponent as TruckSvg } from '@/images/truck.svg';
 import { ReactComponent as BikeSvg } from '@/images/bike.svg';
 import { ReactComponent as PedestrianSvg } from '@/images/pedestrian.svg';
-import { ReactComponent as MotorbikeSvg } from '@/images/motorbike.svg';
 import type { Profile } from '@/stores/common-store';
 import {
   Tooltip,
@@ -19,13 +17,11 @@ import { Loader2 } from 'lucide-react';
 import { useSearch } from '@tanstack/react-router';
 
 const iconMap = {
-  truck: <TruckSvg />,
   car: <CarSvg />,
-  bicycle: <BikeSvg />,
   pedestrian: <PedestrianSvg />,
-  motor_scooter: <ScooterSvg />,
+  bicycle: <BikeSvg />,
   bus: <BusSvg />,
-  motorcycle: <MotorbikeSvg />,
+  truck: <TruckSvg />,
 };
 
 interface ProfilePickerProps {
@@ -49,13 +45,11 @@ export const ProfilePicker = ({
   );
 
   const profiles = [
-    { value: 'bicycle', label: 'Bicycle' },
-    { value: 'pedestrian', label: 'Pedestrian' },
     { value: 'car', label: 'Car' },
-    { value: 'truck', label: 'Truck' },
+    { value: 'pedestrian', label: 'Pedestrian' },
+    { value: 'bicycle', label: 'Bicycle' },
     { value: 'bus', label: 'Bus' },
-    { value: 'motor_scooter', label: 'Motor Scooter' },
-    { value: 'motorcycle', label: 'Motorcycle' },
+    { value: 'truck', label: 'Truck' },
   ];
 
   return (
