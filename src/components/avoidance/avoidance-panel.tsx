@@ -1,14 +1,10 @@
-import { useState } from 'react';
-import { ShieldAlert, Plus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { ShieldAlert } from 'lucide-react';
 import { useFeedStore } from '@/stores/feed-store';
 import { FeedCard } from './feed-card';
-import { AddFeedDialog } from './add-feed-dialog';
 import { useDirectionsQuery } from '@/hooks/use-directions-queries';
 
 export const AvoidancePlaceholder = () => {
   const feeds = useFeedStore((state) => state.feeds);
-  const [showAddDialog, setShowAddDialog] = useState(false);
   const { refetch: refetchDirections } = useDirectionsQuery();
 
   const handleToggleChanged = () => {
@@ -31,25 +27,6 @@ export const AvoidancePlaceholder = () => {
           />
         ))}
       </div>
-
-      {showAddDialog ? (
-        <AddFeedDialog
-          onClose={() => setShowAddDialog(false)}
-          onAdded={() => {
-            setShowAddDialog(false);
-          }}
-        />
-      ) : (
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full"
-          onClick={() => setShowAddDialog(true)}
-        >
-          <Plus className="size-3.5" />
-          Add Feed
-        </Button>
-      )}
     </div>
   );
 };

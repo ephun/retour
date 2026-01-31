@@ -8,6 +8,7 @@ import {
   type MapRef,
   NavigationControl,
   GeolocateControl,
+  ScaleControl,
   type GeolocateErrorEvent,
 } from 'react-map-gl/maplibre';
 import type { MaplibreTerradrawControl } from '@watergis/maplibre-gl-terradraw';
@@ -619,6 +620,7 @@ export const MapComponent = () => {
     >
       <NavigationControl />
       <GeolocateControl onError={handleGeolocateError} />
+      <ScaleControl position="bottom-right" />
       <DrawControl onUpdate={handleDrawUpdate} controlRef={drawRef} />
       <MapStyleControl
         customStyleData={customStyleData}

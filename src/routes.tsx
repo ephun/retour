@@ -24,7 +24,7 @@ export const indexRoute = createRoute({
       to: '/$activeTab',
       params: { activeTab: 'directions' },
       search: {
-        profile: 'bicycle',
+        profile: 'car',
       },
     });
   },
@@ -44,7 +44,7 @@ const activeTabRoute = createRoute({
         to: '/$activeTab',
         params: { activeTab: 'directions' },
         search: {
-          profile: 'bicycle',
+          profile: 'car',
         },
       });
     }
@@ -54,7 +54,7 @@ const activeTabRoute = createRoute({
         params: { activeTab: params.activeTab },
         search: {
           ...search,
-          profile: 'bicycle',
+          profile: 'car',
         },
       });
     }

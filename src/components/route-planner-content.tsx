@@ -54,15 +54,6 @@ export const RoutePlannerContent = () => {
 
   return (
     <Tabs value={activeTab} onValueChange={handleTabChange}>
-      {showProfilePicker && (
-        <div className="flex justify-between px-2 mb-1 mt-2">
-          <ProfilePicker
-            loading={loading}
-            onProfileChange={handleProfileChange}
-          />
-        </div>
-      )}
-
       <TabsList>
         <TabsTrigger value="directions" data-testid="directions-tab-button">
           Directions
@@ -77,6 +68,15 @@ export const RoutePlannerContent = () => {
           Tiles
         </TabsTrigger>
       </TabsList>
+
+      {showProfilePicker && (
+        <div className="flex justify-between px-2 mb-1 mt-2">
+          <ProfilePicker
+            loading={loading}
+            onProfileChange={handleProfileChange}
+          />
+        </div>
+      )}
 
       <TabsContent value="directions" className="flex flex-col gap-3 px-2">
         <DirectionsControl />
