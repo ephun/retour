@@ -15,6 +15,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { MetricItem } from '@/components/ui/metric-item';
+import { formatArea } from '@/utils/units';
+import { useUnitSystem } from '@/hooks/use-unit-system';
 
 interface IsochronesCardProps {
   data: ValhallaIsochroneResponse;
@@ -22,6 +24,7 @@ interface IsochronesCardProps {
 }
 
 export const IsochroneCard = ({ data, showOnMap }: IsochronesCardProps) => {
+  const [unitSystem] = useUnitSystem();
   const toggleShowOnMap = useIsochronesStore((state) => state.toggleShowOnMap);
 
   const handleChange = (checked: boolean) => {
@@ -64,11 +67,10 @@ export const IsochroneCard = ({ data, showOnMap }: IsochronesCardProps) => {
                       variant="outline"
                       icon={MoveIcon}
                       label="Area"
-                      value={
-                        (feature.properties?.area > 1
-                          ? feature.properties?.area.toFixed(0)
-                          : feature.properties?.area.toFixed(1)) + ' km²'
-                      }
+                      value={formatArea(
+                        feature.properties?.area ?? 0,
+                        unitSystem
+                      )}
                     />
                   </div>
                 );

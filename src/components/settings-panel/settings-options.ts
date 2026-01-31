@@ -529,10 +529,10 @@ const surveillanceAvoidRadius = {
   name: 'Surveillance Avoid Radius',
   param: 'surveillance_avoid_radius',
   description:
-    'The radius around each surveillance device to avoid when routing.',
+    'The radius around each surveillance device to avoid when routing. ALPRs can read plates from up to ~50m away; the minimum here ensures routes stay outside detection range.',
   unit: 'meters',
   settings: {
-    min: 25,
+    min: 50,
     max: 500,
     step: 25,
   },

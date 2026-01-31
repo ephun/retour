@@ -23,11 +23,14 @@ import {
   Languages,
   SlidersHorizontal,
   Settings2,
+  Ruler,
 } from 'lucide-react';
 import { useSearch } from '@tanstack/react-router';
 import { useDirectionsQuery } from '@/hooks/use-directions-queries';
 import { CollapsibleSection } from '@/components/ui/collapsible-section';
 import { ServerSettings } from '@/components/settings-panel/server-settings';
+import { useUnitSystem } from '@/hooks/use-unit-system';
+import type { UnitSystem } from '@/utils/units';
 
 type ProfileWithSettings = Exclude<Profile, 'auto'>;
 
@@ -43,6 +46,8 @@ export const SettingsPanelInline = () => {
     getDirectionsLanguage()
   );
 
+  const [unitSystem, setUnitSystem] = useUnitSystem();
+  const [unitsOpen, setUnitsOpen] = useState(true);
   const [languageSettingsOpen, setLanguageSettingsOpen] = useState(true);
   const [profileSettingsOpen, setProfileSettingsOpen] = useState(true);
   const [generalSettingsOpen, setGeneralSettingsOpen] = useState(true);
@@ -97,6 +102,26 @@ export const SettingsPanelInline = () => {
   return (
     <div className="space-y-3">
       <ServerSettings />
+
+      <CollapsibleSection
+        title="Units"
+        icon={Ruler}
+        open={unitsOpen}
+        onOpenChange={setUnitsOpen}
+      >
+        <SelectSetting
+          id="unit-system"
+          label="Unit System"
+          description="Choose between metric and imperial units for distances and speeds"
+          placeholder="Select Unit System"
+          value={unitSystem}
+          options={[
+            { key: 'metric', text: 'Metric (km, m)', value: 'metric' },
+            { key: 'imperial', text: 'Imperial (mi, ft)', value: 'imperial' },
+          ]}
+          onValueChange={(value) => setUnitSystem(value as UnitSystem)}
+        />
+      </CollapsibleSection>
 
       <CollapsibleSection
         title="Directions Language"

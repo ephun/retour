@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { colorMappings } from '@/utils/heightgraph';
 import makeResizable from '@/utils/resizable';
+import { getUnitSystem } from '@/utils/units';
 import type { FeatureCollection, GeoJsonProperties, Geometry } from 'geojson';
 
 interface HeightGraphProps {
@@ -107,10 +108,21 @@ const HeightGraph: React.FC<HeightGraphProps> = ({
     });
 
     // Add axes
+    const units = getUnitSystem();
+    const kmToMi = 0.621371;
+    const mToFt = 3.28084;
     const xAxis = d3
       .axisBottom(xScale)
-      .tickFormat((d) => `${(+d / 1000).toFixed(1)} km`);
-    const yAxis = d3.axisLeft(yScale).tickFormat((d) => `${d} m`);
+      .tickFormat((d) =>
+        units === 'imperial'
+          ? `${((+d / 1000) * kmToMi).toFixed(1)} mi`
+          : `${(+d / 1000).toFixed(1)} km`
+      );
+    const yAxis = d3
+      .axisLeft(yScale)
+      .tickFormat((d) =>
+        units === 'imperial' ? `${Math.round(+d * mToFt)} ft` : `${d} m`
+      );
 
     g.append('g')
       .attr('transform', `translate(0,${chartHeight})`)
@@ -158,7 +170,7 @@ const HeightGraph: React.FC<HeightGraphProps> = ({
       .attr('text-anchor', 'middle')
       .style('font-size', '12px')
       .style('fill', '#666')
-      .text('Elevation (m)');
+      .text(units === 'imperial' ? 'Elevation (ft)' : 'Elevation (m)');
 
     // Add hover interaction
     const focus = g.append('g').attr('class', 'focus').style('display', 'none');
@@ -225,7 +237,9 @@ const HeightGraph: React.FC<HeightGraphProps> = ({
             .style('left', `${mouseX + 10}px`)
             .style('top', `${event.offsetY - 10}px`)
             .html(
-              `Distance: ${(d.distance / 1000).toFixed(2)} km<br/>Elevation: ${d.elevation.toFixed(0)} m`
+              units === 'imperial'
+                ? `Distance: ${((d.distance / 1000) * kmToMi).toFixed(2)} mi<br/>Elevation: ${Math.round(d.elevation * mToFt)} ft`
+                : `Distance: ${(d.distance / 1000).toFixed(2)} km<br/>Elevation: ${d.elevation.toFixed(0)} m`
             );
 
           if (onHighlight) {

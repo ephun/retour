@@ -8,10 +8,10 @@ import {
   type IceActivityNode,
 } from '@/utils/alpr';
 import { MarkerInfoPopup } from './marker-info-popup';
+import { useCommonStore } from '@/stores/common-store';
 
 const ICE_COLOR = '#1d4ed8';
 const CIRCLE_SEGMENTS = 32;
-const ICE_DISPLAY_RADIUS = 500;
 
 export const ICE_ACTIVITY_LAYER_ID = 'ice-activity-fill';
 
@@ -38,6 +38,9 @@ function circlePolygon(
 }
 
 export const IceActivityMarkers = () => {
+  const iceDisplayRadius = useCommonStore(
+    (state) => (state.settings.ice_activity_avoid_radius as number) || 500
+  );
   const iceFeed = useFeedStore((state) =>
     state.feeds.find((f) => f.id === 'builtin-iceout')
   );
@@ -70,13 +73,13 @@ export const IceActivityMarkers = () => {
 
       if (features && features.length > 0) {
         const feature = features[0]!;
-        const { address, occurred, activity } = (feature.properties ||
+        const { id, address, occurred, activity } = (feature.properties ||
           {}) as Record<string, unknown>;
 
         setSelectedFeature({
           lng: e.lngLat.lng,
           lat: e.lngLat.lat,
-          properties: { address, occurred, activity },
+          properties: { address, occurred, activity, reportId: id },
         });
       }
     };
@@ -120,9 +123,7 @@ export const IceActivityMarkers = () => {
           type: 'Feature' as const,
           geometry: {
             type: 'Polygon' as const,
-            coordinates: [
-              circlePolygon(node.lon, node.lat, ICE_DISPLAY_RADIUS),
-            ],
+            coordinates: [circlePolygon(node.lon, node.lat, iceDisplayRadius)],
           },
           properties: {
             id: node.id,
@@ -132,7 +133,7 @@ export const IceActivityMarkers = () => {
           },
         })),
     };
-  }, [showOnMap, nodes, intersectingIds]);
+  }, [showOnMap, nodes, intersectingIds, iceDisplayRadius]);
 
   const handleMarkerClick = useCallback((node: IceActivityNode) => {
     setSelectedFeature({
@@ -142,6 +143,7 @@ export const IceActivityMarkers = () => {
         address: node.address,
         occurred: node.occurred,
         activity: node.activity,
+        reportId: node.id,
       },
     });
   }, []);

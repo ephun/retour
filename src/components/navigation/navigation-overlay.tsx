@@ -3,18 +3,12 @@ import { ManeuverIcon } from './maneuver-icon';
 import { Button } from '@/components/ui/button';
 import { X, Volume2, VolumeX } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-is-mobile';
-
-function formatDistance(meters: number): string {
-  if (meters >= 1000) {
-    return `${(meters / 1000).toFixed(1)} km`;
-  }
-  return `${Math.round(meters)} m`;
-}
-
-function formatSpeed(speedMs: number | null): string {
-  if (speedMs === null || speedMs < 0) return '--';
-  return `${Math.round(speedMs * 3.6)} km/h`;
-}
+import {
+  formatDistanceMeters,
+  formatSpeed as formatSpeedUnit,
+  formatDistance as formatDistanceKm,
+} from '@/utils/units';
+import { useUnitSystem } from '@/hooks/use-unit-system';
 
 function formatETA(
   maneuvers: { time: number }[],
@@ -31,18 +25,19 @@ function formatETA(
   return `${hours}h ${mins}m`;
 }
 
-function getRemainingDistance(
+function getRemainingDistanceKm(
   maneuvers: { length: number }[],
   currentIndex: number
-): string {
+): number {
   let remaining = 0;
   for (let i = currentIndex; i < maneuvers.length; i++) {
     remaining += maneuvers[i]!.length;
   }
-  return `${remaining.toFixed(1)} km`;
+  return remaining;
 }
 
 export const NavigationOverlay = () => {
+  const [unitSystem] = useUnitSystem();
   const isMobile = useIsMobile();
   const isNavigating = useNavigationStore((s) => s.isNavigating);
   const currentManeuverIndex = useNavigationStore(
@@ -81,7 +76,12 @@ export const NavigationOverlay = () => {
           <div className="text-xs text-muted-foreground flex gap-2">
             <span>{formatETA(maneuvers, currentManeuverIndex)}</span>
             <span>&middot;</span>
-            <span>{getRemainingDistance(maneuvers, currentManeuverIndex)}</span>
+            <span>
+              {formatDistanceKm(
+                getRemainingDistanceKm(maneuvers, currentManeuverIndex),
+                unitSystem
+              )}
+            </span>
           </div>
         </div>
         <Button
@@ -115,7 +115,7 @@ export const NavigationOverlay = () => {
           />
           <div className="flex-1 min-w-0">
             <div className="text-lg font-semibold">
-              {formatDistance(distanceToNextManeuver)}
+              {formatDistanceMeters(distanceToNextManeuver, unitSystem)}
             </div>
             <div className="text-sm opacity-90 line-clamp-2">
               {nextManeuver?.verbal_pre_transition_instruction ??
@@ -128,7 +128,7 @@ export const NavigationOverlay = () => {
       {/* Bottom speed display */}
       <div className="bg-background/90 backdrop-blur rounded-lg px-3 py-2 shadow-lg pointer-events-auto self-start">
         <div className="text-lg font-mono font-semibold">
-          {formatSpeed(userPosition?.speed ?? null)}
+          {formatSpeedUnit(userPosition?.speed ?? null, unitSystem)}
         </div>
       </div>
     </div>

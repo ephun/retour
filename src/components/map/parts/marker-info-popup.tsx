@@ -1,5 +1,7 @@
 import { X, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { formatDistanceMeters } from '@/utils/units';
+import { useUnitSystem } from '@/hooks/use-unit-system';
 
 const typeColors: Record<string, string> = {
   alpr: 'bg-red-500',
@@ -27,18 +29,19 @@ export const MarkerInfoPopup = ({
   distanceFromRoute,
   onClose,
 }: MarkerInfoPopupProps) => {
+  const [unitSystem] = useUnitSystem();
   const displayProperties = Object.entries(properties).filter(
     ([key, value]) =>
       value !== undefined &&
       value !== null &&
       value !== '' &&
-      !['id', 'type'].includes(key)
+      !['id', 'type', 'reportId'].includes(key)
   );
 
   const accentColor = typeColors[type.toLowerCase()] ?? 'bg-muted-foreground';
 
   return (
-    <div className="min-w-[200px] max-w-[300px]">
+    <div className="min-w-[200px] max-w-[300px] p-3">
       <div className="flex items-center gap-2 mb-3 pr-6">
         <div className={`w-1 h-5 rounded-full ${accentColor}`} />
         <h3 className="font-bold text-sm">{type}</h3>
@@ -72,11 +75,7 @@ export const MarkerInfoPopup = ({
             <span className="font-medium text-foreground/70">
               Distance from route:
             </span>
-            <span>
-              {distanceFromRoute < 1000
-                ? `${Math.round(distanceFromRoute)}m`
-                : `${(distanceFromRoute / 1000).toFixed(1)}km`}
-            </span>
+            <span>{formatDistanceMeters(distanceFromRoute, unitSystem)}</span>
           </div>
         )}
 
@@ -89,6 +88,18 @@ export const MarkerInfoPopup = ({
           >
             <ExternalLink className="size-3" />
             View source
+          </a>
+        )}
+
+        {type.toLowerCase().includes('ice') && !!properties.reportId && (
+          <a
+            href={`https://iceout.org/en/reportInfo/${String(properties.reportId)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-blue-600 hover:underline pt-1"
+          >
+            <ExternalLink className="size-3" />
+            View on iceout.org
           </a>
         )}
       </div>

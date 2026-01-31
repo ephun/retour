@@ -6,14 +6,8 @@ import { MetricItem } from '@/components/ui/metric-item';
 import { RouteAttributes } from '@/components/ui/route-attributes';
 import { formatDuration } from '@/utils/date-time';
 import { useDirectionsStore } from '@/stores/directions-store';
-
-const getLength = (length: number) => {
-  const visibleLength = length * 1000;
-  if (visibleLength < 1000) {
-    return visibleLength + 'm';
-  }
-  return (visibleLength / 1000).toFixed(2) + 'km';
-};
+import { formatManeuverLength } from '@/utils/units';
+import { useUnitSystem } from '@/hooks/use-unit-system';
 
 interface ManeuversProps {
   legs: Leg[];
@@ -21,6 +15,7 @@ interface ManeuversProps {
 }
 
 export const Maneuvers = ({ legs, index }: ManeuversProps) => {
+  const [unitSystem] = useUnitSystem();
   const highlightManeuver = useDirectionsStore(
     (state) => state.highlightManeuver
   );
@@ -72,7 +67,7 @@ export const Maneuvers = ({ legs, index }: ManeuversProps) => {
                     <MetricItem
                       icon={MoveHorizontal}
                       label="Length"
-                      value={getLength(mnv.length)}
+                      value={formatManeuverLength(mnv.length, unitSystem)}
                       variant="outline"
                     />
                     <MetricItem

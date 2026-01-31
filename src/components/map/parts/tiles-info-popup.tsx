@@ -13,7 +13,7 @@ export function TilesInfoPopup({ features, onClose }: TilesInfoPopupProps) {
   if (features.length === 0) return null;
 
   return (
-    <div className="flex flex-col gap-3 p-2 max-w-sm max-h-96 overflow-auto">
+    <div className="flex flex-col gap-3 p-4 max-w-sm max-h-96 overflow-auto">
       <Button
         variant="ghost"
         size="icon-xs"

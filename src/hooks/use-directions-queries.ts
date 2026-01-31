@@ -89,6 +89,11 @@ async function fetchDirections() {
 
   // Unified avoidance: collect ALL enabled feed points into one array
   const enabledFeeds = feeds.filter((f) => f.enabled);
+  const survAvoidRadius =
+    (rawSettings.surveillance_avoid_radius as number) || 100;
+  const iceAvoidRadius =
+    (rawSettings.ice_activity_avoid_radius as number) || 500;
+  const avoidStartRadius = Math.max(survAvoidRadius, iceAvoidRadius);
 
   if (enabledFeeds.length > 0) {
     const allAvoidancePoints: GenericAvoidancePoint[] = [];
@@ -129,7 +134,7 @@ async function fetchDirections() {
           alternates: rawSettings.alternates,
           existingExcludePolygons: baseExcludePolygons,
         },
-        50, // start radius
+        avoidStartRadius,
         20 // max iterations
       );
       result = avoidResult.route;
@@ -140,7 +145,17 @@ async function fetchDirections() {
         const feedPoints = allAvoidancePoints.filter(
           (p) => p.feedId === feed.id
         );
-        const stillNear = findPointsNearRoute(finalGeometry, feedPoints, 50);
+        const feedRadius =
+          feed.id === 'builtin-iceout'
+            ? iceAvoidRadius
+            : feed.id === 'builtin-surveillance'
+              ? survAvoidRadius
+              : avoidStartRadius;
+        const stillNear = findPointsNearRoute(
+          finalGeometry,
+          feedPoints,
+          feedRadius
+        );
         useFeedStore.getState().setUnavoidableCount(feed.id, stillNear.length);
       }
     }
@@ -173,8 +188,9 @@ export function useDirectionsQuery() {
           receiveRouteResults({ data });
           zoomTo(data.decodedGeometry);
 
-          // Detect surveillance nodes that the final route still intersects
+          // Detect surveillance/ICE nodes that the final route still intersects
           const feeds = useFeedStore.getState().feeds;
+          const rawSettings = useCommonStore.getState().settings;
           const survFeed = feeds.find((f) => f.id === 'builtin-surveillance');
           const iceFeed = feeds.find((f) => f.id === 'builtin-iceout');
 
@@ -191,6 +207,8 @@ export function useDirectionsQuery() {
           }
 
           if (iceFeed && (iceFeed.enabled || iceFeed.showOnMap)) {
+            const iceRadius =
+              (rawSettings.ice_activity_avoid_radius as number) || 500;
             let iceNodes = await loadIceActivityNodes();
             if (iceFeed.maxAgeDays && iceFeed.maxAgeDays > 0) {
               iceNodes = filterIceNodesByAge(iceNodes, iceFeed.maxAgeDays);
@@ -198,7 +216,7 @@ export function useDirectionsQuery() {
             const iceHits = findIceActivityNearRoute(
               data.decodedGeometry,
               iceNodes,
-              50
+              iceRadius
             );
             setIntersectingIceActivity(iceHits);
           } else {

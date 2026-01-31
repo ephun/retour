@@ -16,6 +16,8 @@ import { Label } from '@/components/ui/label';
 import { MetricItem } from '@/components/ui/metric-item';
 import { RouteAttributes } from '@/components/ui/route-attributes';
 import { useDirectionsStore } from '@/stores/directions-store';
+import { formatDistance, formatElevation } from '@/utils/units';
+import { useUnitSystem } from '@/hooks/use-unit-system';
 
 export const Summary = ({
   summary,
@@ -26,6 +28,7 @@ export const Summary = ({
   title: string;
   index: number;
 }) => {
+  const [unitSystem] = useUnitSystem();
   const results = useDirectionsStore((state) => state.results);
   const inclineDeclineTotal = useDirectionsStore(
     (state) => state.inclineDeclineTotal
@@ -62,7 +65,7 @@ export const Summary = ({
     {
       icon: MoveHorizontal,
       label: 'Route length',
-      value: `${summary.length.toFixed(summary.length > 1000 ? 0 : 1)} km`,
+      value: formatDistance(summary.length, unitSystem),
     },
     {
       icon: Clock,
@@ -74,12 +77,18 @@ export const Summary = ({
           {
             icon: ArrowUp,
             label: 'Total Incline',
-            value: `${inclineDeclineTotal.inclineTotal} m`,
+            value: formatElevation(
+              inclineDeclineTotal.inclineTotal as number,
+              unitSystem
+            ),
           },
           {
             icon: ArrowDown,
             label: 'Total Decline',
-            value: `${inclineDeclineTotal.declineTotal} m`,
+            value: formatElevation(
+              inclineDeclineTotal.declineTotal as number,
+              unitSystem
+            ),
           },
         ]
       : []),

@@ -16,6 +16,8 @@ const defaultProps = {
   onAddWaypoint: vi.fn(),
   onAddIsoWaypoint: vi.fn(),
   popupLocation: { lng: 10.5, lat: 50.5 },
+  address: '',
+  onClose: vi.fn(),
 };
 
 describe('MapContextMenu', () => {

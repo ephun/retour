@@ -32,7 +32,6 @@ import { SurveillanceMarkers } from './parts/surveillance-markers';
 import { IceActivityMarkers } from './parts/ice-activity-markers';
 import { NavigationOverlay } from '@/components/navigation/navigation-overlay';
 import { useNavigationStore } from '@/stores/navigation-store';
-import { MapInfoPopup } from './parts/map-info-popup';
 import { MapContextMenu } from './parts/map-context-menu';
 import { RouteHoverPopup } from './parts/route-hover-popup';
 import { TilesInfoPopup } from './parts/tiles-info-popup';
@@ -80,7 +79,6 @@ export const MapComponent = () => {
   );
   const setMapReady = useCommonStore((state) => state.setMapReady);
   const { style } = useSearch({ from: '/$activeTab' });
-  const [showInfoPopup, setShowInfoPopup] = useState(false);
   const [showContextPopup, setShowContextPopup] = useState(false);
   const [popupLngLat, setPopupLngLat] = useState<{
     lng: number;
@@ -368,11 +366,6 @@ export const MapComponent = () => {
         return;
       }
 
-      if (showInfoPopup) {
-        setShowInfoPopup(false);
-        return;
-      }
-
       // Check if TerraDraw is in an active drawing mode
       if (drawRef.current) {
         const terraDrawInstance = drawRef.current.getTerraDrawInstance();
@@ -388,56 +381,18 @@ export const MapComponent = () => {
         }
       }
 
-      const { lngLat } = event;
-
-      cancelPendingClick();
-
-      // store the pending location in ref to avoid stale closure issues
-      clickStateRef.current.pendingLngLat = lngLat;
-
-      // delay showing popup to distinguish single click from double-click/double-tap
-      clickStateRef.current.timer = setTimeout(() => {
-        const pendingLngLat = clickStateRef.current.pendingLngLat;
-        if (pendingLngLat) {
-          if (activeTab === 'tiles') {
-            handleMapTilesClick(event);
-          } else {
-            setPopupLngLat(pendingLngLat);
-            setPopupAddress('');
-            setShowInfoPopup(true);
-            reverse_geocode(pendingLngLat.lng, pendingLngLat.lat)
-              .then(({ data }) => {
-                const feature = data.features?.[0];
-                if (feature) {
-                  const p = feature.properties;
-                  const parts: string[] = [];
-                  if (p.name) parts.push(p.name);
-                  if (p.housenumber && p.street) {
-                    parts.push(`${p.housenumber} ${p.street}`);
-                  } else if (p.street) {
-                    parts.push(p.street);
-                  }
-                  if (p.city) parts.push(p.city);
-                  if (p.state) parts.push(p.state);
-                  setPopupAddress(parts.join(', ') || 'Unknown location');
-                }
-              })
-              .catch(() => {
-                setPopupAddress('');
-              });
-          }
-        }
-        clickStateRef.current.timer = null;
-        clickStateRef.current.pendingLngLat = null;
-      }, CLICK_DELAY_MS);
+      // For tiles tab, handle tile clicks
+      if (activeTab === 'tiles') {
+        cancelPendingClick();
+        clickStateRef.current.pendingLngLat = event.lngLat;
+        clickStateRef.current.timer = setTimeout(() => {
+          handleMapTilesClick(event);
+          clickStateRef.current.timer = null;
+          clickStateRef.current.pendingLngLat = null;
+        }, CLICK_DELAY_MS);
+      }
     },
-    [
-      showInfoPopup,
-      showContextPopup,
-      cancelPendingClick,
-      activeTab,
-      handleMapTilesClick,
-    ]
+    [showContextPopup, cancelPendingClick, activeTab, handleMapTilesClick]
   );
 
   // handle double-click to cancel the pending single-click popup
@@ -458,8 +413,29 @@ export const MapComponent = () => {
 
       const { lngLat } = event;
       setPopupLngLat(lngLat);
-      setShowInfoPopup(false);
+      setPopupAddress('');
       setShowContextPopup(true);
+
+      reverse_geocode(lngLat.lng, lngLat.lat)
+        .then(({ data }) => {
+          const feature = data.features?.[0];
+          if (feature) {
+            const p = feature.properties;
+            const parts: string[] = [];
+            if (p.name) parts.push(p.name);
+            if (p.housenumber && p.street) {
+              parts.push(`${p.housenumber} ${p.street}`);
+            } else if (p.street) {
+              parts.push(p.street);
+            }
+            if (p.city) parts.push(p.city);
+            if (p.state) parts.push(p.state);
+            setPopupAddress(parts.join(', ') || 'Unknown location');
+          }
+        })
+        .catch(() => {
+          setPopupAddress('');
+        });
     },
     [activeTab]
   );
@@ -574,7 +550,7 @@ export const MapComponent = () => {
 
   const handleMouseMove = useCallback(
     (event: maplibregl.MapLayerMouseEvent) => {
-      if (!mapRef.current || showInfoPopup) return;
+      if (!mapRef.current) return;
 
       const features = event.features;
       const isOverRoute =
@@ -594,7 +570,7 @@ export const MapComponent = () => {
         }
       }
     },
-    [showInfoPopup, routeHoverPopup, onRouteLineHover]
+    [routeHoverPopup, onRouteLineHover]
   );
 
   const handleMouseLeave = useCallback(() => {
@@ -689,24 +665,8 @@ export const MapComponent = () => {
             onAddWaypoint={handleAddWaypoint}
             onAddIsoWaypoint={handleAddIsoWaypoint}
             popupLocation={popupLngLat}
-          />
-        </Popup>
-      )}
-
-      {showInfoPopup && popupLngLat && (
-        <Popup
-          longitude={popupLngLat.lng}
-          latitude={popupLngLat.lat}
-          closeButton={false}
-          closeOnClick={false}
-          maxWidth="none"
-        >
-          <MapInfoPopup
-            popupLngLat={popupLngLat}
             address={popupAddress}
-            onClose={() => {
-              setShowInfoPopup(false);
-            }}
+            onClose={() => setShowContextPopup(false)}
           />
         </Popup>
       )}
