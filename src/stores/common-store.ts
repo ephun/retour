@@ -22,7 +22,6 @@ export const profileEnum = z.enum([
 export type Profile = z.infer<typeof profileEnum>;
 
 interface CommonState {
-  settingsPanelOpen: boolean;
   directionsPanelOpen: boolean;
   coordinates: number[][];
   loading: boolean;
@@ -35,7 +34,6 @@ interface CommonState {
 interface CommonActions {
   showLoading: (loading: boolean) => void;
   zoomTo: (coordinates: number[][]) => void;
-  toggleSettings: () => void;
   toggleDirections: () => void;
   updateSettings: (
     name: keyof PossibleSettings,
@@ -52,7 +50,6 @@ type CommonStore = CommonState & CommonActions;
 export const useCommonStore = create<CommonStore>()(
   devtools(
     immer((set) => ({
-      settingsPanelOpen: false,
       directionsPanelOpen: true,
       coordinates: [],
       loading: false,
@@ -68,14 +65,6 @@ export const useCommonStore = create<CommonStore>()(
       zoomTo: (coordinates) => set({ coordinates }),
       setMapReady: (ready) => set({ mapReady: ready }),
       setBottomSheetSnap: (snap) => set({ bottomSheetSnap: snap }),
-      toggleSettings: () =>
-        set(
-          (state) => {
-            state.settingsPanelOpen = !state.settingsPanelOpen;
-          },
-          undefined,
-          'toggleSettings'
-        ),
       toggleDirections: () =>
         set(
           (state) => {

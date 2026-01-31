@@ -19,9 +19,13 @@ const TAB_CONFIG = {
     title: 'Directions',
     description: 'Plan a route between multiple locations',
   },
-  isochrones: {
-    title: 'Isochrones',
-    description: 'Calculate reachable areas from a location',
+  avoid: {
+    title: 'Avoid',
+    description: 'Configure avoidance of surveillance and other points',
+  },
+  settings: {
+    title: 'Settings',
+    description: 'Advanced routing settings',
   },
   tiles: {
     title: 'Tiles',

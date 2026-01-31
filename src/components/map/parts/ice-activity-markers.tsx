@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Source, Layer, Marker } from 'react-map-gl/maplibre';
-import { useCommonStore } from '@/stores/common-store';
+import { useFeedStore } from '@/stores/feed-store';
 import { useDirectionsStore } from '@/stores/directions-store';
 import {
   loadIceActivityNodes,
@@ -10,6 +10,9 @@ import {
 
 const ICE_COLOR = '#1d4ed8';
 const CIRCLE_SEGMENTS = 32;
+const ICE_DISPLAY_RADIUS = 500;
+
+export const ICE_ACTIVITY_LAYER_ID = 'ice-activity-fill';
 
 /** Generate a GeoJSON Polygon circle around a point with a given radius in meters. */
 function circlePolygon(
@@ -28,30 +31,27 @@ function circlePolygon(
 }
 
 export const IceActivityMarkers = () => {
-  const showIceActivity = useCommonStore(
-    (state) => state.settings.show_ice_activity
+  const iceFeed = useFeedStore((state) =>
+    state.feeds.find((f) => f.id === 'builtin-iceout')
   );
-  const avoidRadius =
-    useCommonStore((state) => state.settings.ice_activity_avoid_radius) || 500;
-  const maxAgeDays = useCommonStore(
-    (state) => state.settings.ice_activity_max_age
-  );
+  const showOnMap = iceFeed?.showOnMap ?? false;
+  const maxAgeDays = iceFeed?.maxAgeDays ?? 30;
   const intersecting = useDirectionsStore(
     (state) => state.intersectingIceActivity
   );
   const [allNodes, setAllNodes] = useState<IceActivityNode[]>([]);
 
   useEffect(() => {
-    if (showIceActivity && allNodes.length === 0) {
+    if (showOnMap && allNodes.length === 0) {
       loadIceActivityNodes().then(setAllNodes);
     }
-  }, [showIceActivity, allNodes.length]);
+  }, [showOnMap, allNodes.length]);
 
   const nodes = useMemo(() => {
-    if (!showIceActivity || allNodes.length === 0) return [];
+    if (!showOnMap || allNodes.length === 0) return [];
     if (maxAgeDays > 0) return filterIceNodesByAge(allNodes, maxAgeDays);
     return allNodes;
-  }, [showIceActivity, allNodes, maxAgeDays]);
+  }, [showOnMap, allNodes, maxAgeDays]);
 
   const intersectingIds = useMemo(
     () => new Set(intersecting.map((a) => a.id)),
@@ -59,7 +59,7 @@ export const IceActivityMarkers = () => {
   );
 
   const geojson: GeoJSON.FeatureCollection | null = useMemo(() => {
-    if (!showIceActivity || nodes.length === 0) return null;
+    if (!showOnMap || nodes.length === 0) return null;
     return {
       type: 'FeatureCollection',
       features: nodes
@@ -68,19 +68,26 @@ export const IceActivityMarkers = () => {
           type: 'Feature' as const,
           geometry: {
             type: 'Polygon' as const,
-            coordinates: [circlePolygon(node.lon, node.lat, avoidRadius)],
+            coordinates: [
+              circlePolygon(node.lon, node.lat, ICE_DISPLAY_RADIUS),
+            ],
           },
-          properties: { id: node.id },
+          properties: {
+            id: node.id,
+            address: node.address,
+            occurred: node.occurred,
+            activity: node.activity,
+          },
         })),
     };
-  }, [showIceActivity, nodes, intersectingIds, avoidRadius]);
+  }, [showOnMap, nodes, intersectingIds]);
 
   return (
     <>
       {geojson && (
         <Source id="ice-activity-source" type="geojson" data={geojson}>
           <Layer
-            id="ice-activity-fill"
+            id={ICE_ACTIVITY_LAYER_ID}
             type="fill"
             paint={{
               'fill-color': ICE_COLOR,

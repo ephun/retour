@@ -3,7 +3,6 @@ import type {
   ParsedDirectionsGeometry,
 } from '@/components/types';
 import type { SurveillanceNode, IceActivityNode } from '@/utils/alpr';
-import type { FeatureCollection } from 'geojson';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
@@ -72,7 +71,6 @@ export interface DirectionsState {
   intersectingIceActivity: IceActivityNode[];
   inclineDeclineTotal?: InclineDeclineTotal;
   isOptimized: boolean;
-  heightgraphData: FeatureCollection[];
 }
 
 interface DirectionsActions {
@@ -105,7 +103,6 @@ interface DirectionsActions {
     lat: number
   ) => void;
   setIsOptimized: (isOptimized: boolean) => void;
-  setHeightgraphData: (data: FeatureCollection[]) => void;
 }
 
 type DirectionsStore = DirectionsState & DirectionsActions;
@@ -122,7 +119,6 @@ export const useDirectionsStore = create<DirectionsStore>()(
       intersectingSurveillance: [],
       intersectingIceActivity: [],
       isOptimized: false,
-      heightgraphData: [],
 
       updateInclineDecline: (inclineDeclineTotal) =>
         set(
@@ -369,15 +365,6 @@ export const useDirectionsStore = create<DirectionsStore>()(
           },
           undefined,
           'setIsOptimized'
-        ),
-
-      setHeightgraphData: (data) =>
-        set(
-          (state) => {
-            state.heightgraphData = data;
-          },
-          undefined,
-          'setHeightgraphData'
         ),
     })),
     { name: 'directions-store' }

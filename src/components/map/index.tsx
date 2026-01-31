@@ -15,14 +15,11 @@ import type maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 import axios from 'axios';
-import { throttle } from 'throttle-debounce';
 import {
   getValhallaUrl,
   buildHeightRequest,
   buildLocateRequest,
 } from '@/utils/valhalla';
-import { buildHeightgraphData } from '@/utils/heightgraph';
-import HeightGraph from '@/components/heightgraph';
 import { DrawControl } from './draw-control';
 import type { Summary } from '@/components/types';
 import { Button } from '@/components/ui/button';
@@ -37,9 +34,6 @@ import {
 import type { MapStyleType } from './types';
 import { RouteLines } from './parts/route-lines';
 import { HighlightSegment } from './parts/highlight-segment';
-import { IsochronePolygons } from './parts/isochrone-polygons';
-import { IsochroneLocations } from './parts/isochrone-locations';
-import { HeightgraphHoverMarker } from './parts/heightgraph-hover-marker';
 import { SurveillanceMarkers } from './parts/surveillance-markers';
 import { IceActivityMarkers } from './parts/ice-activity-markers';
 import { BrandLogos } from './parts/brand-logos';
@@ -91,7 +85,6 @@ export const MapComponent = () => {
   const directionsPanelOpen = useCommonStore(
     (state) => state.directionsPanelOpen
   );
-  const settingsPanelOpen = useCommonStore((state) => state.settingsPanelOpen);
   const updateSettings = useCommonStore((state) => state.updateSettings);
   const setMapReady = useCommonStore((state) => state.setMapReady);
   const { profile, style } = useSearch({ from: '/$activeTab' });
@@ -105,22 +98,8 @@ export const MapComponent = () => {
     lat: number;
   } | null>(null);
   const [elevation, setElevation] = useState('');
-  const [heightPayload, setHeightPayload] = useState<{
-    range: boolean;
-    shape: { lat: number; lon: number }[];
-    id: string;
-  } | null>(null);
-  const heightgraphData = useDirectionsStore((state) => state.heightgraphData);
-  const setHeightgraphData = useDirectionsStore(
-    (state) => state.setHeightgraphData
-  );
   const bottomSheetSnap = useCommonStore((state) => state.bottomSheetSnap);
   const waypoints = useDirectionsStore((state) => state.waypoints);
-  const directionResults = useDirectionsStore((state) => state.results);
-  const directionsSuccessful = useDirectionsStore((state) => state.successful);
-  const updateInclineDecline = useDirectionsStore(
-    (state) => state.updateInclineDecline
-  );
 
   const isNavigating = useNavigationStore((s) => s.isNavigating);
   const navUserPosition = useNavigationStore((s) => s.userPosition);
@@ -131,9 +110,6 @@ export const MapComponent = () => {
     useReverseGeocodeDirections();
   const { reverseGeocode: reverseGeocodeIsochrones } =
     useReverseGeocodeIsochrones();
-  const [heightgraphHoverDistance, setHeightgraphHoverDistance] = useState<
-    number | null
-  >(null);
   const [routeHoverPopup, setRouteHoverPopup] = useState<{
     lng: number;
     lat: number;
@@ -187,11 +163,6 @@ export const MapComponent = () => {
       clickStateRef.current.pendingLngLat = null;
     }
   }, []);
-
-  const throttledSetHeightgraphHoverDistance = useMemo(
-    () => throttle(50, setHeightgraphHoverDistance),
-    []
-  );
 
   const handleStyleChange = useCallback((style: MapStyleType) => {
     setCurrentMapStyle(style);
@@ -347,53 +318,6 @@ export const MapComponent = () => {
     updateIsoPosition(popupLngLat.lng, popupLngLat.lat);
   }, [popupLngLat, updateIsoPosition]);
 
-  const getHeightData = useCallback(() => {
-    if (!directionResults.data?.decodedGeometry) return;
-
-    const heightPayloadNew = buildHeightRequest(
-      directionResults.data.decodedGeometry as [number, number][]
-    );
-
-    if (JSON.stringify(heightPayload) !== JSON.stringify(heightPayloadNew)) {
-      setIsHeightLoading(true);
-      setHeightPayload(heightPayloadNew);
-      axios
-        .post(getValhallaUrl() + '/height', heightPayloadNew, {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        })
-        .then(({ data }) => {
-          const reversedGeometry = JSON.parse(
-            JSON.stringify(directionResults.data?.decodedGeometry)
-          ).map((pair: number[]) => {
-            return [...pair.reverse()];
-          });
-          const heightData = buildHeightgraphData(
-            reversedGeometry,
-            data.range_height
-          );
-          const { inclineTotal, declineTotal } = heightData[0]!.properties;
-          updateInclineDecline({
-            inclineTotal,
-            declineTotal,
-          });
-          setHeightgraphData(heightData);
-        })
-        .catch(({ response }) => {
-          console.log(response);
-        })
-        .finally(() => {
-          setIsHeightLoading(false);
-        });
-    }
-  }, [
-    directionResults,
-    heightPayload,
-    updateInclineDecline,
-    setHeightgraphData,
-  ]);
-
   // Update markers when waypoints or isochrone centers change
   const geocodeResults = useIsochronesStore((state) => state.geocodeResults);
   const markers = useMemo(() => {
@@ -471,10 +395,7 @@ export const MapComponent = () => {
         50,
       ];
 
-      const paddingBottomRight = [
-        isMobile ? 50 : settingsPanelOpen ? 420 : 50,
-        bottomPadding,
-      ];
+      const paddingBottomRight = [50, bottomPadding];
 
       mapRef.current.fitBounds(bounds, {
         padding: {
@@ -486,13 +407,7 @@ export const MapComponent = () => {
         maxZoom: coordinates.length === 1 ? 11 : 18,
       });
     }
-  }, [
-    coordinates,
-    directionsPanelOpen,
-    settingsPanelOpen,
-    isMobile,
-    bottomSheetSnap,
-  ]);
+  }, [coordinates, directionsPanelOpen, isMobile, bottomSheetSnap]);
 
   // Auto-follow user position during navigation
   useEffect(() => {
@@ -731,10 +646,9 @@ export const MapComponent = () => {
 
   const handleMouseMove = useCallback(
     (event: maplibregl.MapLayerMouseEvent) => {
-      if (!mapRef.current || showInfoPopup) return; // Don't show if click popup is visible
+      if (!mapRef.current || showInfoPopup) return;
 
       const features = event.features;
-      // Check if we're hovering over the routes-line layer
       const isOverRoute =
         features &&
         features.length > 0 &&
@@ -743,7 +657,6 @@ export const MapComponent = () => {
       if (isOverRoute) {
         onRouteLineHover(event);
       } else {
-        // Clear popup and cursor when not over route
         if (routeHoverPopup) {
           setRouteHoverPopup(null);
         }
@@ -810,8 +723,6 @@ export const MapComponent = () => {
       />
       <RouteLines />
       <HighlightSegment />
-      <IsochronePolygons />
-      <IsochroneLocations />
       <SurveillanceMarkers />
       <IceActivityMarkers />
       {markers.map((marker) => (
@@ -836,11 +747,6 @@ export const MapComponent = () => {
           <MarkerIcon color={marker.color!} number={marker.number} />
         </Marker>
       ))}
-
-      <HeightgraphHoverMarker
-        hoverDistance={heightgraphHoverDistance}
-        heightgraphData={heightgraphData}
-      />
 
       {showContextPopup && popupLngLat && (
         <Popup
@@ -895,7 +801,6 @@ export const MapComponent = () => {
           longitude={tilesPopup.lng}
           latitude={tilesPopup.lat}
           closeButton={false}
-          // closeOnClick={false}
           maxWidth="none"
           onClose={() => setTilesPopup(null)}
         >
@@ -939,24 +844,6 @@ export const MapComponent = () => {
       >
         Open OSM
       </Button>
-
-      {directionsSuccessful && !isMobile && (
-        <HeightGraph
-          data={heightgraphData}
-          width={
-            directionsPanelOpen
-              ? window.innerWidth * 0.75
-              : window.innerWidth * 0.9
-          }
-          height={200}
-          onExpand={(expanded) => {
-            if (expanded) {
-              getHeightData();
-            }
-          }}
-          onHighlight={throttledSetHeightgraphHoverDistance}
-        />
-      )}
     </Map>
   );
 };

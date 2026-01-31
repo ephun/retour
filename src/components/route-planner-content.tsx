@@ -2,7 +2,6 @@ import { lazy, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { DirectionsControl } from './directions/directions';
-import { IsochronesControl } from './isochrones/isochrones';
 
 const TilesControl = lazy(() =>
   import('./tiles/tiles').then((module) => ({ default: module.TilesControl }))
@@ -12,31 +11,15 @@ import { getValhallaUrl } from '@/utils/valhalla';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useParams, useNavigate } from '@tanstack/react-router';
 import { ProfilePicker } from './profile-picker';
-import { SettingsButton } from './settings-button';
 import type { Profile } from '@/stores/common-store';
 import { useDirectionsQuery } from '@/hooks/use-directions-queries';
-import { useIsochronesQuery } from '@/hooks/use-isochrones-queries';
-
-const TAB_CONFIG = {
-  directions: {
-    title: 'Directions',
-    description: 'Plan a route between multiple locations',
-  },
-  isochrones: {
-    title: 'Isochrones',
-    description: 'Calculate reachable areas from a location',
-  },
-  tiles: {
-    title: 'Tiles',
-    description: 'View and manage map tiles',
-  },
-} as const;
+import { SettingsPanelInline } from './settings-panel/settings-panel';
+import { AvoidancePlaceholder } from './avoidance/avoidance-panel';
 
 export const RoutePlannerContent = () => {
   const { activeTab } = useParams({ from: '/$activeTab' });
   const navigate = useNavigate({ from: '/$activeTab' });
   const { refetch: refetchDirections } = useDirectionsQuery();
-  const { refetch: refetchIsochrones } = useIsochronesQuery();
   const loading = useCommonStore((state) => state.loading);
 
   const {
@@ -64,48 +47,45 @@ export const RoutePlannerContent = () => {
       replace: true,
     });
 
-    if (activeTab === 'isochrones') {
-      refetchIsochrones();
-      setTimeout(() => {
-        refetchDirections();
-      }, 1000);
-    } else {
-      refetchDirections();
-      setTimeout(() => {
-        refetchIsochrones();
-      }, 1000);
-    }
+    refetchDirections();
   };
+
+  const showProfilePicker = activeTab === 'directions' || activeTab === 'avoid';
 
   return (
     <Tabs value={activeTab} onValueChange={handleTabChange}>
+      {showProfilePicker && (
+        <div className="flex justify-between px-2 mb-1 mt-2">
+          <ProfilePicker
+            loading={loading}
+            onProfileChange={handleProfileChange}
+          />
+        </div>
+      )}
+
       <TabsList>
         <TabsTrigger value="directions" data-testid="directions-tab-button">
           Directions
         </TabsTrigger>
-        <TabsTrigger value="isochrones" data-testid="isochrones-tab-button">
-          Isochrones
+        <TabsTrigger value="avoid" data-testid="avoid-tab-button">
+          Avoid
+        </TabsTrigger>
+        <TabsTrigger value="settings" data-testid="settings-tab-button">
+          Settings
         </TabsTrigger>
         <TabsTrigger value="tiles" data-testid="tiles-tab-button">
           Tiles
         </TabsTrigger>
       </TabsList>
 
-      {activeTab !== 'tiles' && (
-        <div className="flex justify-between px-2 mb-1 mt-2">
-          <ProfilePicker
-            loading={loading}
-            onProfileChange={handleProfileChange}
-          />
-          <SettingsButton />
-        </div>
-      )}
-
       <TabsContent value="directions" className="flex flex-col gap-3 px-2">
         <DirectionsControl />
       </TabsContent>
-      <TabsContent value="isochrones" className="flex flex-col gap-3 px-2">
-        <IsochronesControl />
+      <TabsContent value="avoid" className="flex flex-col gap-3 px-2">
+        <AvoidancePlaceholder />
+      </TabsContent>
+      <TabsContent value="settings" className="flex flex-col gap-3 px-2">
+        <SettingsPanelInline />
       </TabsContent>
       <TabsContent
         value="tiles"
@@ -124,9 +104,7 @@ export const RoutePlannerContent = () => {
             </span>
           )}
           {isErrorLastUpdate && (
-            <span className="text-destructive">
-              Failed to load last update
-            </span>
+            <span className="text-destructive">Failed to load last update</span>
           )}
           {lastUpdate && (
             <span>

@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Source, Layer, Marker } from 'react-map-gl/maplibre';
-import { useCommonStore } from '@/stores/common-store';
+import { useFeedStore } from '@/stores/feed-store';
 import { useDirectionsStore } from '@/stores/directions-store';
 import {
   loadSurveillanceNodes,
@@ -9,20 +9,24 @@ import {
   type SurveillanceNode,
 } from '@/utils/alpr';
 
+export const SURVEILLANCE_LAYER_ID = 'surveillance-circles';
+
 export const SurveillanceMarkers = () => {
-  const showSurveillance = useCommonStore(
-    (state) => state.settings.show_surveillance
+  const survFeed = useFeedStore((state) =>
+    state.feeds.find((f) => f.id === 'builtin-surveillance')
   );
+  const showOnMap = survFeed?.showOnMap ?? false;
+  const visibleTypes = survFeed?.visibleTypes;
   const intersecting = useDirectionsStore(
     (state) => state.intersectingSurveillance
   );
   const [nodes, setNodes] = useState<SurveillanceNode[]>([]);
 
   useEffect(() => {
-    if (showSurveillance && nodes.length === 0) {
+    if (showOnMap && nodes.length === 0) {
       loadSurveillanceNodes().then(setNodes);
     }
-  }, [showSurveillance, nodes.length]);
+  }, [showOnMap, nodes.length]);
 
   const intersectingIds = useMemo(
     () => new Set(intersecting.map((a) => a.id)),
@@ -30,21 +34,26 @@ export const SurveillanceMarkers = () => {
   );
 
   const geojson: GeoJSON.FeatureCollection | null = useMemo(() => {
-    if (!showSurveillance || nodes.length === 0) return null;
+    if (!showOnMap || nodes.length === 0) return null;
     return {
       type: 'FeatureCollection',
       features: nodes
         .filter((node) => !intersectingIds.has(node.id))
+        .filter((node) => !visibleTypes || visibleTypes[node.type] !== false)
         .map((node) => ({
           type: 'Feature' as const,
           geometry: {
             type: 'Point' as const,
             coordinates: [node.lon, node.lat],
           },
-          properties: { id: node.id, type: node.type },
+          properties: {
+            id: node.id,
+            type: node.type,
+            osm_id: node.id,
+          },
         })),
     };
-  }, [showSurveillance, nodes, intersectingIds]);
+  }, [showOnMap, nodes, intersectingIds, visibleTypes]);
 
   // Build the match expression for circle-color based on type
   const colorMatch: unknown[] = [
@@ -62,7 +71,7 @@ export const SurveillanceMarkers = () => {
       {geojson && (
         <Source id="surveillance-source" type="geojson" data={geojson}>
           <Layer
-            id="surveillance-circles"
+            id={SURVEILLANCE_LAYER_ID}
             type="circle"
             paint={{
               'circle-radius': [

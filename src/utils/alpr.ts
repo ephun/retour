@@ -452,3 +452,174 @@ export async function avoidSurveillanceOnRoute(
 
   return { route: currentRoute, excludePolygons: excludedPolygons };
 }
+
+/**
+ * Generic avoidance point (used by unified avoidance system).
+ */
+export interface GenericAvoidancePoint {
+  id: number | string;
+  lat: number;
+  lon: number;
+  type: string;
+  feedId: string;
+}
+
+/**
+ * Find generic avoidance points near route.
+ */
+export function findPointsNearRoute(
+  geometry: number[][],
+  points: GenericAvoidancePoint[],
+  radiusMeters: number
+): GenericAvoidancePoint[] {
+  const bufferDeg = (radiusMeters / 111320) * 1.5;
+  let minLat = Infinity,
+    maxLat = -Infinity,
+    minLon = Infinity,
+    maxLon = -Infinity;
+  for (const p of geometry) {
+    if (p[0]! < minLat) minLat = p[0]!;
+    if (p[0]! > maxLat) maxLat = p[0]!;
+    if (p[1]! < minLon) minLon = p[1]!;
+    if (p[1]! > maxLon) maxLon = p[1]!;
+  }
+  minLat -= bufferDeg;
+  maxLat += bufferDeg;
+  minLon -= bufferDeg;
+  maxLon += bufferDeg;
+
+  const candidates = points.filter(
+    (n) =>
+      n.lat >= minLat && n.lat <= maxLat && n.lon >= minLon && n.lon <= maxLon
+  );
+
+  const results: { point: GenericAvoidancePoint; minDist: number }[] = [];
+
+  for (const point of candidates) {
+    let minDist = Infinity;
+    for (let i = 0; i < geometry.length - 1; i++) {
+      const d = distToSegment(
+        point.lat,
+        point.lon,
+        geometry[i]![0]!,
+        geometry[i]![1]!,
+        geometry[i + 1]![0]!,
+        geometry[i + 1]![1]!
+      );
+      if (d < minDist) minDist = d;
+    }
+    if (minDist <= radiusMeters) {
+      results.push({ point, minDist });
+    }
+  }
+
+  results.sort((a, b) => a.minDist - b.minDist);
+  return results.map((r) => r.point);
+}
+
+/**
+ * Unified avoidance with adaptive radius.
+ * Collects ALL avoidance points from ALL feeds into one loop.
+ * Starts with startRadius (default 50m), halves on failure.
+ */
+export async function avoidPointsUnified(
+  initialRoute: ParsedDirectionsGeometry,
+  points: GenericAvoidancePoint[],
+  params: FullRouteParams,
+  startRadius: number = 50,
+  maxIterations: number = 20
+): Promise<AvoidanceResult> {
+  let currentRoute = initialRoute;
+  const excludedIds = new Set<number | string>();
+  const excludedPolygons: number[][][] = [];
+  let lastRouteShape = '';
+  let currentRadius = startRadius;
+  const detectionRadius = startRadius; // detect at the starting radius
+
+  for (let iter = 0; iter < maxIterations; iter++) {
+    const nearby = findPointsNearRoute(
+      currentRoute.decodedGeometry,
+      points,
+      detectionRadius
+    );
+
+    if (nearby.length === 0) {
+      console.log(
+        `[Avoidance] Route clear after ${iter} iteration(s), ${excludedIds.size} points excluded`
+      );
+      break;
+    }
+
+    const newPoints = nearby.filter((p) => !excludedIds.has(p.id));
+
+    if (newPoints.length === 0) {
+      console.warn(
+        `[Avoidance] ${nearby.length} points still near route but already excluded — cannot avoid further.`
+      );
+      break;
+    }
+
+    // Create exclusion polygons for new points
+    const newPolygons: number[][][] = [];
+    for (const point of newPoints) {
+      excludedIds.add(point.id);
+      newPolygons.push(squarePolygon(point.lon, point.lat, currentRadius));
+    }
+    excludedPolygons.push(...newPolygons);
+
+    console.log(
+      `[Avoidance] Iteration ${iter}: ${nearby.length} near route, ${newPoints.length} new, ${excludedPolygons.length} total exclusions (radius=${currentRadius}m)`
+    );
+
+    // Try to reroute with adaptive radius
+    let newRoute = await routeWithExclusions(excludedPolygons, params);
+
+    if (!newRoute && currentRadius > 10) {
+      // Adaptive: halve the radius and rebuild polygons for just the failed points
+      console.log(
+        `[Avoidance] Reroute failed at ${currentRadius}m, retrying at ${currentRadius / 2}m`
+      );
+      // Remove the failed polygons and retry with smaller radius
+      excludedPolygons.splice(
+        excludedPolygons.length - newPolygons.length,
+        newPolygons.length
+      );
+      currentRadius = Math.max(10, currentRadius / 2);
+      const smallerPolygons: number[][][] = [];
+      for (const point of newPoints) {
+        smallerPolygons.push(
+          squarePolygon(point.lon, point.lat, currentRadius)
+        );
+      }
+      excludedPolygons.push(...smallerPolygons);
+      newRoute = await routeWithExclusions(excludedPolygons, params);
+    }
+
+    if (!newRoute) {
+      console.warn(
+        '[Avoidance] Reroute failed even with reduced radius. Returning last successful route.'
+      );
+      // Remove the failed polygons
+      for (const point of newPoints) {
+        excludedIds.delete(point.id);
+      }
+      excludedPolygons.splice(
+        excludedPolygons.length - newPoints.length,
+        newPoints.length
+      );
+      break;
+    }
+
+    const newShape = newRoute.trip.legs.map((l) => l.shape).join('|');
+    if (newShape === lastRouteShape) {
+      console.warn(
+        '[Avoidance] Route unchanged despite new exclusions. Returning best route.'
+      );
+      break;
+    }
+    lastRouteShape = newShape;
+    currentRoute = newRoute;
+  }
+
+  return { route: currentRoute, excludePolygons: excludedPolygons };
+}
